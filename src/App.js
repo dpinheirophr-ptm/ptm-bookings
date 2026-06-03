@@ -25,7 +25,7 @@ var emptyJob = { day:"Monday", date:"", client:"", time:"", address:"", workOrde
 
 var inp = { width:"100%", background:"#f8fafc", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#1a2e1a", padding:"8px 10px", fontSize:"13px", outline:"none", boxSizing:"border-box" };
 var lbl = { color:"#166534", fontSize:"11px", fontWeight:"700", letterSpacing:"0.8px", textTransform:"uppercase", marginBottom:"4px", display:"block" };
-var green = { background:"linear-gradient(135deg,#166534,#14532d)", border:"none", color:"#fff", borderRadius:"6px", padding:"10px", fontSize:"13px", cursor:"pointer", fontWeight:"700" };
+var btnGreen = { background:"linear-gradient(135deg,#166534,#14532d)", border:"none", color:"#fff", borderRadius:"6px", padding:"10px", fontSize:"13px", cursor:"pointer", fontWeight:"700" };
 
 function getBusy(jobs, day, excludeId) {
   var busy = {};
@@ -62,37 +62,23 @@ function JobFormPage(props) {
         <div style={{ fontFamily:"monospace", color:"#fff", fontSize:"16px", fontWeight:"700" }}>{job && job.id ? "Edit Job" : "New Job"}</div>
         <button onClick={props.onClose} style={{ background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.4)", color:"#fff", borderRadius:"6px", padding:"6px 14px", fontSize:"13px", cursor:"pointer" }}>← Back</button>
       </div>
-
-      <div style={{ padding:"16px", maxWidth:"500px", margin:"0 auto" }}>
+      <div style={{ padding:"16px", maxWidth:"520px", margin:"0 auto" }}>
         <div style={{ background:"#fff", borderRadius:"10px", padding:"16px", boxShadow:"0 1px 4px rgba(0,0,0,0.06)", border:"1px solid #bbf7d0" }}>
 
           <div style={{ marginBottom:"12px" }}><label style={lbl}>Client</label><input style={inp} value={form.client} onChange={function(e){set("client",e.target.value)}} placeholder="Ex: Kwikflo, Ventia..." /></div>
 
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"12px" }}>
-            <div><label style={lbl}>Day</label>
-              <select style={inp} value={form.day} onChange={function(e){set("day",e.target.value)}}>
-                {DAYS.map(function(d){return <option key={d}>{d}</option>})}
-              </select>
-            </div>
+            <div><label style={lbl}>Day</label><select style={inp} value={form.day} onChange={function(e){set("day",e.target.value)}}>{DAYS.map(function(d){return <option key={d}>{d}</option>})}</select></div>
             <div><label style={lbl}>Date</label><input style={inp} type="date" value={form.date} onChange={function(e){set("date",e.target.value)}} /></div>
-            <div><label style={lbl}>Time on site</label>
-              <select style={inp} value={form.time} onChange={function(e){set("time",e.target.value)}}>
-                <option value="">Select...</option>
-                {TIMES.map(function(t){return <option key={t}>{t}</option>})}
-              </select>
-            </div>
-            <div><label style={lbl}>Status</label>
-              <select style={inp} value={form.status} onChange={function(e){set("status",e.target.value)}}>
-                {STATUSES.map(function(s){return <option key={s}>{s}</option>})}
-              </select>
-            </div>
+            <div><label style={lbl}>Time on site</label><select style={inp} value={form.time} onChange={function(e){set("time",e.target.value)}}><option value="">Select...</option>{TIMES.map(function(t){return <option key={t}>{t}</option>})}</select></div>
+            <div><label style={lbl}>Status</label><select style={inp} value={form.status} onChange={function(e){set("status",e.target.value)}}>{STATUSES.map(function(s){return <option key={s}>{s}</option>})}</select></div>
           </div>
 
           <div style={{ marginBottom:"12px" }}><label style={lbl}>Address</label><input style={inp} value={form.address} onChange={function(e){set("address",e.target.value)}} placeholder="Ex: 2 Wilson St Chatswood" /></div>
           <div style={{ marginBottom:"12px" }}><label style={lbl}>Work Order Ref</label><input style={inp} value={form.workOrderRef} onChange={function(e){set("workOrderRef",e.target.value)}} placeholder="Ex: WOR201300821144" /></div>
 
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"12px" }}>
-            <div><label style={lbl}>Team Leader</label>
+            <div><label style={lbl}>Team Leader (1st Ute)</label>
               <select style={inp} value={form.teamLeader} onChange={function(e){set("teamLeader",e.target.value)}}>
                 <option value="">Select...</option>
                 {tls.map(function(n){ return <option key={n} disabled={!!busy[n] && form.teamLeader !== n}>{busy[n] && form.teamLeader !== n ? n+" (busy)" : n}</option>; })}
@@ -114,12 +100,14 @@ function JobFormPage(props) {
           </div>
 
           <div style={{ marginBottom:"12px" }}>
-            <label style={lbl}>TCs on crew {Object.keys(busy).length > 0 ? "• strikethrough = busy" : ""}</label>
+            <label style={lbl}>TCs on crew {Object.keys(busy).length > 0 ? "• strikethrough = busy this day" : ""}</label>
             <div style={{ display:"flex", flexWrap:"wrap", gap:"6px", marginTop:"6px" }}>
               {tcs.map(function(name) {
                 var sel = (form.workers||[]).indexOf(name) >= 0;
                 var isBusy = !!busy[name] && !sel;
-                return <div key={name} onClick={function(){ if(!isBusy) toggleW(name); }} style={{ padding:"5px 12px", borderRadius:"20px", fontSize:"12px", cursor:isBusy?"not-allowed":"pointer", background:sel?"#166534":isBusy?"#f1f5f9":"#f0fdf4", color:sel?"#fff":isBusy?"#cbd5e1":"#166534", border:"1px solid "+(sel?"#166534":isBusy?"#e2e8f0":"#bbf7d0"), userSelect:"none", textDecoration:isBusy?"line-through":"none", opacity:isBusy?0.5:1 }}>{name}</div>;
+                return (
+                  <div key={name} onClick={function(){ if(!isBusy) toggleW(name); }} style={{ padding:"5px 12px", borderRadius:"20px", fontSize:"12px", cursor:isBusy?"not-allowed":"pointer", background:sel?"#166534":isBusy?"#f1f5f9":"#f0fdf4", color:sel?"#fff":isBusy?"#cbd5e1":"#166534", border:"1px solid "+(sel?"#166534":isBusy?"#e2e8f0":"#bbf7d0"), userSelect:"none", textDecoration:isBusy?"line-through":"none", opacity:isBusy?0.5:1 }}>{name}</div>
+                );
               })}
             </div>
             <div style={{ color:"#64748b", fontSize:"11px", marginTop:"6px" }}>{(form.workers||[]).length} TCs selected</div>
@@ -129,7 +117,7 @@ function JobFormPage(props) {
 
           <div style={{ display:"flex", gap:"10px" }}>
             <button onClick={props.onClose} style={{ flex:1, background:"#f1f5f9", border:"1px solid #cbd5e1", color:"#64748b", borderRadius:"6px", padding:"12px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
-            <button onClick={function(){props.onSave(form)}} style={Object.assign({},green,{flex:2,padding:"12px"})}>Save Job</button>
+            <button onClick={function(){props.onSave(form)}} style={Object.assign({},btnGreen,{flex:2,padding:"12px"})}>Save Job</button>
           </div>
         </div>
       </div>
@@ -179,6 +167,38 @@ function JobCard(props) {
   );
 }
 
+function CalendarView(props) {
+  var jobs = props.jobs;
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"6px", padding:"12px" }}>
+      {DAYS.map(function(day) {
+        var dayJobs = jobs.filter(function(j){ return j.day === day; });
+        var activeCount = dayJobs.filter(function(j){ return j.status !== "Cancelled"; }).length;
+        return (
+          <div key={day} style={{ background:"#fff", borderRadius:"8px", border:"1px solid #bbf7d0", minHeight:"140px", overflow:"hidden" }}>
+            <div style={{ background:"#166534", padding:"6px 8px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ color:"#fff", fontSize:"11px", fontWeight:"700", fontFamily:"monospace" }}>{day.slice(0,3).toUpperCase()}</span>
+              {activeCount > 0 ? <span style={{ background:"#fff", color:"#166534", borderRadius:"10px", fontSize:"10px", fontWeight:"700", padding:"1px 5px" }}>{activeCount}</span> : null}
+            </div>
+            <div style={{ padding:"4px" }}>
+              {dayJobs.map(function(job) {
+                var sc = STATUS_COLORS[job.status] || STATUS_COLORS.Pending;
+                return (
+                  <div key={job.id} onClick={function(){props.onEdit(job)}} style={{ background:sc.bg, borderLeft:"3px solid "+sc.border, borderRadius:"3px", padding:"3px 5px", marginBottom:"3px", cursor:"pointer" }}>
+                    <div style={{ color:sc.text, fontWeight:"700", fontSize:"10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.client}</div>
+                    <div style={{ color:"#64748b", fontSize:"9px" }}>{job.time}</div>
+                  </div>
+                );
+              })}
+              <div onClick={function(){props.onAdd(day)}} style={{ color:"#22c55e", fontSize:"20px", textAlign:"center", cursor:"pointer", marginTop:"4px", lineHeight:"1" }}>+</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function TeamPage(props) {
   var tls = props.tls; var tcs = props.tcs;
   var s1 = useState(""); var newTL = s1[0]; var setNewTL = s1[1];
@@ -189,12 +209,17 @@ function TeamPage(props) {
       <div style={{ background:"#fff", borderRadius:"10px", padding:"16px", marginBottom:"16px", boxShadow:"0 1px 4px rgba(0,0,0,0.06)", border:"1px solid #bbf7d0" }}>
         <h3 style={{ color:"#166534", fontFamily:"monospace", fontSize:"14px", margin:"0 0 12px 0" }}>🚐 TEAM LEADERS</h3>
         <div style={{ display:"flex", gap:"8px", marginBottom:"12px" }}>
-          <input style={Object.assign({},inp,{flex:1})} value={newTL} onChange={function(e){setNewTL(e.target.value)}} placeholder="Add team leader..." onKeyDown={function(e){ if(e.key==="Enter"&&newTL.trim()){props.onAddTL(newTL.trim());setNewTL("");}}} />
-          <button onClick={function(){if(newTL.trim()){props.onAddTL(newTL.trim());setNewTL("");}}} style={Object.assign({},green,{padding:"8px 14px"})}>Add</button>
+          <input style={Object.assign({},inp,{flex:1})} value={newTL} onChange={function(e){setNewTL(e.target.value)}} placeholder="Add team leader name..." onKeyDown={function(e){ if(e.key==="Enter"&&newTL.trim()){props.onAddTL(newTL.trim());setNewTL("");}}} />
+          <button onClick={function(){if(newTL.trim()){props.onAddTL(newTL.trim());setNewTL("");}}} style={Object.assign({},btnGreen,{padding:"8px 16px"})}>Add</button>
         </div>
         <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
-          {tls.map(function(tl){return <div key={tl.id} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:"20px", padding:"5px 12px" }}><span style={{ color:"#166534", fontSize:"13px", fontWeight:"600" }}>{tl.name}</span><span onClick={function(){props.onDeleteTL(tl.id)}} style={{ color:"#ef4444", cursor:"pointer", fontSize:"16px", lineHeight:1 }}>×</span></div>;})}
-          {tls.length===0?<span style={{ color:"#94a3b8", fontSize:"13px" }}>No team leaders yet</span>:null}
+          {tls.map(function(tl){
+            return <div key={tl.id} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:"20px", padding:"5px 12px" }}>
+              <span style={{ color:"#166534", fontSize:"13px", fontWeight:"600" }}>{tl.name}</span>
+              <span onClick={function(){props.onDeleteTL(tl.id)}} style={{ color:"#ef4444", cursor:"pointer", fontSize:"18px", lineHeight:"1", fontWeight:"300" }}>×</span>
+            </div>;
+          })}
+          {tls.length===0?<span style={{ color:"#94a3b8", fontSize:"13px" }}>No team leaders yet. Add one above.</span>:null}
         </div>
       </div>
 
@@ -202,11 +227,16 @@ function TeamPage(props) {
         <h3 style={{ color:"#166534", fontFamily:"monospace", fontSize:"14px", margin:"0 0 12px 0" }}>👷 TRAFFIC CONTROLLERS</h3>
         <div style={{ display:"flex", gap:"8px", marginBottom:"12px" }}>
           <input style={Object.assign({},inp,{flex:1})} value={newTC} onChange={function(e){setNewTC(e.target.value)}} placeholder="Add TC name..." onKeyDown={function(e){ if(e.key==="Enter"&&newTC.trim()){props.onAddTC(newTC.trim());setNewTC("");}}} />
-          <button onClick={function(){if(newTC.trim()){props.onAddTC(newTC.trim());setNewTC("");}}} style={Object.assign({},green,{padding:"8px 14px"})}>Add</button>
+          <button onClick={function(){if(newTC.trim()){props.onAddTC(newTC.trim());setNewTC("");}}} style={Object.assign({},btnGreen,{padding:"8px 16px"})}>Add</button>
         </div>
         <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
-          {tcs.map(function(tc){return <div key={tc.id} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:"20px", padding:"5px 12px" }}><span style={{ color:"#166534", fontSize:"13px" }}>{tc.name}</span><span onClick={function(){props.onDeleteTC(tc.id)}} style={{ color:"#ef4444", cursor:"pointer", fontSize:"16px", lineHeight:1 }}>×</span></div>;})}
-          {tcs.length===0?<span style={{ color:"#94a3b8", fontSize:"13px" }}>No TCs yet</span>:null}
+          {tcs.map(function(tc){
+            return <div key={tc.id} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:"20px", padding:"5px 12px" }}>
+              <span style={{ color:"#166534", fontSize:"13px" }}>{tc.name}</span>
+              <span onClick={function(){props.onDeleteTC(tc.id)}} style={{ color:"#ef4444", cursor:"pointer", fontSize:"18px", lineHeight:"1", fontWeight:"300" }}>×</span>
+            </div>;
+          })}
+          {tcs.length===0?<span style={{ color:"#94a3b8", fontSize:"13px" }}>No TCs yet. Add one above.</span>:null}
         </div>
       </div>
     </div>
@@ -222,9 +252,10 @@ export default function App() {
   var s6 = useState(true); var loading = s6[0]; var setLoading = s6[1];
   var s7 = useState("bookings"); var tab = s7[0]; var setTab = s7[1];
   var s8 = useState(false); var showForm = s8[0]; var setShowForm = s8[1];
+  var s9 = useState("list"); var viewMode = s9[0]; var setViewMode = s9[1];
 
   useEffect(function() {
-    var q = query(collection(db, "jobs"), orderBy("date","asc"));
+    var q = query(collection(db,"jobs"), orderBy("date","asc"));
     var unsub = onSnapshot(q, function(snap){
       setJobs(snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}));
       setLoading(false);
@@ -252,7 +283,7 @@ export default function App() {
 
   function deleteJob(id) { if(window.confirm("Delete this job?")) deleteDoc(doc(db,"jobs",id)); }
   function toggle(id,field) { var job=jobs.find(function(j){return j.id===id;}); var u={}; u[field]=!job[field]; updateDoc(doc(db,"jobs",id),u); }
-  function openNew(day) { setEditing(Object.assign({},emptyJob,{day:day||"Monday"})); setShowForm(true); }
+  function openNew(day) { setEditing(Object.assign({},emptyJob,{day:day||activeDay})); setShowForm(true); }
   function openEdit(job) { setEditing(job); setShowForm(true); }
   function addTL(name){addDoc(collection(db,"teamleaders"),{name:name});}
   function deleteTL(id){deleteDoc(doc(db,"teamleaders",id));}
@@ -268,14 +299,23 @@ export default function App() {
 
   return (
     <div style={{ minHeight:"100vh", background:"#f0fdf4", fontFamily:"Inter,sans-serif" }}>
+      {/* Header */}
       <div style={{ background:"linear-gradient(135deg,#166534,#14532d)", padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:10, boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}>
         <div>
           <div style={{ fontFamily:"monospace", color:"#fff", fontSize:"17px", fontWeight:"700", letterSpacing:"1px" }}>PTM BOOKINGS</div>
           <div style={{ color:"#bbf7d0", fontSize:"11px" }}>Prestige Traffic Management</div>
         </div>
-        {tab==="bookings" ? <button onClick={function(){openNew(activeDay);}} style={{ background:"#fff", border:"none", color:"#166534", borderRadius:"8px", padding:"8px 14px", fontSize:"13px", fontWeight:"700", cursor:"pointer" }}>+ New Job</button> : null}
+        {tab==="bookings" ? (
+          <div style={{ display:"flex", gap:"8px" }}>
+            <button onClick={function(){setViewMode(viewMode==="list"?"calendar":"list");}} style={{ background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff", borderRadius:"6px", padding:"7px 12px", fontSize:"12px", cursor:"pointer" }}>
+              {viewMode==="list" ? "📅 Calendar" : "📋 List"}
+            </button>
+            <button onClick={function(){openNew(activeDay);}} style={{ background:"#fff", border:"none", color:"#166534", borderRadius:"8px", padding:"8px 14px", fontSize:"13px", fontWeight:"700", cursor:"pointer" }}>+ New Job</button>
+          </div>
+        ) : null}
       </div>
 
+      {/* Main tabs */}
       <div style={{ display:"flex", background:"#fff", borderBottom:"2px solid #bbf7d0" }}>
         <button onClick={function(){setTab("bookings");}} style={{ flex:1, background:"none", border:"none", borderBottom:tab==="bookings"?"3px solid #166534":"3px solid transparent", color:tab==="bookings"?"#166534":"#94a3b8", padding:"12px", fontSize:"13px", fontWeight:tab==="bookings"?"700":"500", cursor:"pointer", marginBottom:"-2px" }}>📋 Bookings</button>
         <button onClick={function(){setTab("team");}} style={{ flex:1, background:"none", border:"none", borderBottom:tab==="team"?"3px solid #166534":"3px solid transparent", color:tab==="team"?"#166534":"#94a3b8", padding:"12px", fontSize:"13px", fontWeight:tab==="team"?"700":"500", cursor:"pointer", marginBottom:"-2px" }}>👷 Team</button>
@@ -283,29 +323,37 @@ export default function App() {
 
       {tab==="team" ? (
         <TeamPage tls={tlDocs} tcs={tcDocs} onAddTL={addTL} onDeleteTL={deleteTL} onAddTC={addTC} onDeleteTC={deleteTC} />
+      ) : viewMode==="calendar" ? (
+        <CalendarView jobs={jobs} onEdit={openEdit} onAdd={openNew} />
       ) : (
         <div>
+          {/* Day tabs */}
           <div style={{ display:"flex", overflowX:"auto", background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0 6px" }}>
             {DAYS.map(function(day){
               var count=countActive(day); var active=day===activeDay;
-              return <button key={day} onClick={function(){setActiveDay(day);}} style={{ background:"none", border:"none", borderBottom:active?"3px solid #166534":"3px solid transparent", color:active?"#166534":"#94a3b8", padding:"10px 12px", fontSize:"11px", fontWeight:active?"700":"500", cursor:"pointer", whiteSpace:"nowrap", fontFamily:"monospace", marginBottom:"-2px" }}>
-                {day.slice(0,3).toUpperCase()}
-                {count>0?<span style={{ background:active?"#166534":"#e2e8f0", color:active?"#fff":"#64748b", borderRadius:"10px", fontSize:"10px", fontWeight:"700", padding:"1px 5px", marginLeft:"5px" }}>{count}</span>:null}
-              </button>;
+              return (
+                <button key={day} onClick={function(){setActiveDay(day);}} style={{ background:"none", border:"none", borderBottom:active?"3px solid #166534":"3px solid transparent", color:active?"#166534":"#94a3b8", padding:"10px 12px", fontSize:"11px", fontWeight:active?"700":"500", cursor:"pointer", whiteSpace:"nowrap", fontFamily:"monospace", marginBottom:"-2px" }}>
+                  {day.slice(0,3).toUpperCase()}
+                  {count>0?<span style={{ background:active?"#166534":"#e2e8f0", color:active?"#fff":"#64748b", borderRadius:"10px", fontSize:"10px", fontWeight:"700", padding:"1px 5px", marginLeft:"5px" }}>{count}</span>:null}
+                </button>
+              );
             })}
           </div>
+
+          {/* Jobs list */}
           <div style={{ padding:"14px", maxWidth:"700px", margin:"0 auto" }}>
-            {loading ? <div style={{ textAlign:"center", padding:"60px", color:"#94a3b8" }}>Loading...</div>
-            : dayJobs.length===0 ? (
+            {loading ? (
+              <div style={{ textAlign:"center", padding:"60px", color:"#94a3b8" }}>Loading...</div>
+            ) : dayJobs.length===0 ? (
               <div style={{ textAlign:"center", padding:"60px 20px", color:"#94a3b8" }}>
                 <div style={{ fontSize:"36px", marginBottom:"10px" }}>📋</div>
                 <div style={{ fontSize:"13px", marginBottom:"16px" }}>No jobs for {activeDay}</div>
-                <button onClick={function(){openNew(activeDay);}} style={Object.assign({},green,{padding:"10px 20px"})}>+ Add Job</button>
+                <button onClick={function(){openNew(activeDay);}} style={Object.assign({},btnGreen,{padding:"10px 24px"})}>+ Add Job</button>
               </div>
             ) : (
               <div>
-                <div style={{ color:"#64748b", fontSize:"11px", fontFamily:"monospace", marginBottom:"10px" }}>{dayJobs.length} JOB{dayJobs.length>1?"S":""} - {activeDay.toUpperCase()}</div>
-                {dayJobs.map(function(job){return <JobCard key={job.id} job={job} onEdit={openEdit} onDelete={deleteJob} onToggle={toggle} />;})}
+                <div style={{ color:"#64748b", fontSize:"11px", fontFamily:"monospace", marginBottom:"10px" }}>{dayJobs.length} JOB{dayJobs.length>1?"S":""} — {activeDay.toUpperCase()}</div>
+                {dayJobs.map(function(job){return <JobCard key={job.id} job={job} onEdit={openEdit} onDelete={deleteJob} onToggle={toggle} />;}) }
               </div>
             )}
           </div>
