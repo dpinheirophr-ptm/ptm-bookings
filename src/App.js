@@ -35,8 +35,8 @@ for (var th = 0; th < 24; th++) {
   }
 }
 
-var emptyJob = { day:"Monday", date:"", client:"", time:"", address:"", workOrderRef:"", teamLeader:"", ute2:"", ute3:"", workers:[], uteCount:1, notes:"", status:"Pending", emailsSent:false, invoiceSent:false };
-var emptyWorker = { name:"", roles:["Traffic Controller"], status:"Active", dob:"", address:"", phone:"", email:"", emergencyContact:"", emergencyPhone:"", driveFolderLink:"", profilePhoto:"", whiteCardNumber:"", whiteCardIssue:"", whiteCardFront:"", whiteCardBack:"", tcCardNumber:"", tcCardTypes:[], tcCardIssue:"", tcCardFront:"", tcCardBack:"", licenceNumber:"", licenceCardNumber:"", licenceExpiry:"", licenceFront:"", licenceBack:"", notes:"" };
+var emptyJob = { day:"Monday", date:"", client:"", time:"", address:"", workOrderRef:"", teamLeader:"", ute2:"", ute3:"", workers:[], uteCount:1, tcRequired:1, notes:"", status:"Pending", emailsSent:false, invoiceSent:false };
+var emptyWorker = { name:"", roles:["Traffic Controller"], status:"Active", canDriveUte:false, dob:"", address:"", phone:"", email:"", emergencyContact:"", emergencyPhone:"", driveFolderLink:"", profilePhoto:"", whiteCardNumber:"", whiteCardIssue:"", whiteCardFront:"", whiteCardBack:"", tcCardNumber:"", tcCardTypes:[], tcCardIssue:"", tcCardFront:"", tcCardBack:"", licenceNumber:"", licenceCardNumber:"", licenceExpiry:"", licenceFront:"", licenceBack:"", notes:"" };
 
 var INP = { width:"100%", background:"#f8fafc", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#1a2e1a", padding:"8px 10px", fontSize:"13px", outline:"none", boxSizing:"border-box" };
 var LBL = { color:"#166534", fontSize:"11px", fontWeight:"700", letterSpacing:"0.8px", textTransform:"uppercase", marginBottom:"4px", display:"block" };
@@ -191,6 +191,15 @@ function WorkerModal(props) {
                 <div style={{ gridColumn:"1/-1" }}><label style={LBL}>Email</label><input style={INP} value={form.email} onChange={function(e){setF("email",e.target.value);}} placeholder="email@example.com" /></div>
                 <div style={{ gridColumn:"1/-1" }}><label style={LBL}>Address</label><input style={INP} value={form.address} onChange={function(e){setF("address",e.target.value);}} placeholder="Full address" /></div>
               </div>
+              <div style={{ background:"#f0fdf4", border:"2px solid "+(form.canDriveUte?"#166534":"#e2e8f0"), borderRadius:"10px", padding:"14px", marginBottom:"12px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontWeight:"700", fontSize:"13px", color:"#1a2e1a" }}>🚐 Can drive the work ute?</div>
+                  <div style={{ color:"#64748b", fontSize:"12px", marginTop:"2px" }}>Enable to allow this person as 2nd/3rd ute driver on jobs</div>
+                </div>
+                <div onClick={function(){setF("canDriveUte",!form.canDriveUte);}} style={{ width:"48px", height:"26px", borderRadius:"13px", background:form.canDriveUte?"#166534":"#cbd5e1", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                  <div style={{ position:"absolute", top:"3px", left:form.canDriveUte?"25px":"3px", width:"20px", height:"20px", borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}></div>
+                </div>
+              </div>
               <div style={SHDR}>EMERGENCY CONTACT</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
                 <div><label style={LBL}>Contact Name</label><input style={INP} value={form.emergencyContact} onChange={function(e){setF("emergencyContact",e.target.value);}} placeholder="Name" /></div>
@@ -311,6 +320,7 @@ function WorkerCard(props) {
         <span style={{ background:roleBg, color:roleColor, borderRadius:"4px", fontSize:"10px", fontWeight:"700", padding:"2px 7px" }}>{wRoles.join(" + ")}</span>
         <div style={{ marginTop:"8px", fontSize:"11px", color:"#64748b" }}>
           {w.phone?<div style={{ marginBottom:"3px" }}>📞 {w.phone}</div>:null}
+          {w.canDriveUte?<div style={{ marginBottom:"3px", color:"#1e40af", fontWeight:"600" }}>🚐 Ute driver</div>:null}
           {w.tcCardNumber?<div style={{ marginBottom:"3px" }}>🪪 TC: {w.tcCardNumber}{getWorkerTCTypes(w).length>0?" ("+getWorkerTCTypes(w).join("+")+")" :""}</div>:null}
           {w.licenceExpiry?<div style={{ color:lcExp?"#ef4444":lcExp2?"#f59e0b":"#64748b", fontWeight:lcExp||lcExp2?"700":"400" }}>🚗 {lcExp?"EXPIRED":lcExp2?"Expires soon":w.licenceExpiry}</div>:null}
         </div>
@@ -364,7 +374,7 @@ function TeamPage(props) {
 
 // ── Job Modal ─────────────────────────────────────────────────────
 function JobModal(props) {
-  var job=props.job, tls=props.tls, tcs=props.tcs;
+  var job=props.job, tls=props.tls, tcs=props.tcs, uteDrivers=props.uteDrivers||props.tls;
   var initW=Array.isArray(job.workers)?job.workers.slice():[];
   var init=Object.assign({},emptyJob,job,{workers:initW});
   var sf=useState(init); var form=sf[0]; var setForm=sf[1];
@@ -394,19 +404,59 @@ function JobModal(props) {
         </div>
         <div style={{ marginBottom:"12px" }}><label style={LBL}>Address</label><input style={INP} value={form.address} onChange={function(e){setF("address",e.target.value);}} placeholder="Ex: 2 Wilson St Chatswood" /></div>
         <div style={{ marginBottom:"12px" }}><label style={LBL}>Work Order Ref</label><input style={INP} value={form.workOrderRef} onChange={function(e){setF("workOrderRef",e.target.value);}} placeholder="Ex: WOR201300821144" /></div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"12px" }}>
-          <div><label style={LBL}>Team Leader (1st Ute)</label><select style={INP} value={form.teamLeader} onChange={function(e){setF("teamLeader",e.target.value);}}><option value="">Select...</option>{tls.map(function(n){var b=busy[n]&&form.teamLeader!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
-          <div><label style={LBL}>2nd Ute</label><select style={INP} value={form.ute2||""} onChange={function(e){setF("ute2",e.target.value);}}><option value="">None</option>{tls.map(function(n){var b=busy[n]&&form.ute2!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
-          <div><label style={LBL}>3rd Ute</label><select style={INP} value={form.ute3||""} onChange={function(e){setF("ute3",e.target.value);}}><option value="">None</option>{tls.map(function(n){var b=busy[n]&&form.ute3!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
-          <div><label style={LBL}>Nr Utes</label><input style={INP} type="number" min="1" value={form.uteCount} onChange={function(e){setF("uteCount",Number(e.target.value));}} /></div>
-        </div>
-        <div style={{ marginBottom:"12px" }}>
-          <label style={LBL}>TCs on crew {Object.keys(busy).length>0?"• strikethrough = busy":""}</label>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:"6px", marginTop:"6px" }}>
-            {tcs.map(function(name){var sel=workers.indexOf(name)>=0,isBusy=!sel&&!!busy[name];return <div key={name} onClick={function(){if(!isBusy)toggleW(name);}} style={{ padding:"5px 12px", borderRadius:"20px", fontSize:"12px", cursor:isBusy?"default":"pointer", background:sel?"#166534":isBusy?"#f1f5f9":"#f0fdf4", color:sel?"#fff":isBusy?"#cbd5e1":"#166534", border:"1px solid "+(sel?"#166534":isBusy?"#e2e8f0":"#bbf7d0"), userSelect:"none", textDecoration:isBusy?"line-through":"none", opacity:isBusy?0.5:1 }}>{name}</div>;})}
+
+        {/* Utes section */}
+        <div style={{ background:"#f0fdf4", borderRadius:"8px", padding:"12px", marginBottom:"12px" }}>
+          <label style={LBL}>🚐 Utes & Drivers</label>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginTop:"8px" }}>
+            <div style={{ gridColumn:"1/-1" }}>
+              <label style={LBL}>Team Leader (1st Ute)</label>
+              <select style={INP} value={form.teamLeader} onChange={function(e){setF("teamLeader",e.target.value);}}>
+                <option value="">Select...</option>
+                {tls.map(function(n){var b=busy[n]&&form.teamLeader!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}
+              </select>
+            </div>
+            <div>
+              <label style={LBL}>2nd Ute {uteDrivers.length>0?"(ute drivers only)":""}</label>
+              <select style={INP} value={form.ute2||""} onChange={function(e){setF("ute2",e.target.value);}}>
+                <option value="">None</option>
+                {uteDrivers.map(function(n){var b=busy[n]&&form.ute2!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}
+              </select>
+            </div>
+            <div>
+              <label style={LBL}>3rd Ute {uteDrivers.length>0?"(ute drivers only)":""}</label>
+              <select style={INP} value={form.ute3||""} onChange={function(e){setF("ute3",e.target.value);}}>
+                <option value="">None</option>
+                {uteDrivers.map(function(n){var b=busy[n]&&form.ute3!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}
+              </select>
+            </div>
+            <div>
+              <label style={LBL}>Total Utes</label>
+              <input style={INP} type="number" min="1" max="10" value={form.uteCount} onChange={function(e){setF("uteCount",Number(e.target.value));}} />
+            </div>
           </div>
-          <div style={{ color:"#64748b", fontSize:"11px", marginTop:"6px" }}>{workers.length} TCs selected</div>
         </div>
+
+        {/* TCs section */}
+        <div style={{ background:"#f0fdf4", borderRadius:"8px", padding:"12px", marginBottom:"12px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"8px" }}>
+            <label style={LBL}>👷 Traffic Controllers</label>
+            <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+              <span style={{ color:"#64748b", fontSize:"12px" }}>TCs required:</span>
+              <input type="number" min="1" max="20" value={form.tcRequired||1} onChange={function(e){setF("tcRequired",Number(e.target.value));}} style={{ width:"50px", background:"#fff", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#166534", padding:"4px 8px", fontSize:"13px", fontWeight:"700", outline:"none", textAlign:"center" }} />
+            </div>
+          </div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
+            {tcs.map(function(name){var sel=workers.indexOf(name)>=0,isBusy=!sel&&!!busy[name];return <div key={name} onClick={function(){if(!isBusy)toggleW(name);}} style={{ padding:"5px 12px", borderRadius:"20px", fontSize:"12px", cursor:isBusy?"default":"pointer", background:sel?"#166534":isBusy?"#f1f5f9":"#fff", color:sel?"#fff":isBusy?"#cbd5e1":"#166534", border:"1px solid "+(sel?"#166534":isBusy?"#e2e8f0":"#bbf7d0"), userSelect:"none", textDecoration:isBusy?"line-through":"none", opacity:isBusy?0.5:1 }}>{name}</div>;})}
+          </div>
+          <div style={{ marginTop:"8px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span style={{ color:"#64748b", fontSize:"11px" }}>{Object.keys(busy).length>0?"strikethrough = busy this day":""}</span>
+            <span style={{ color:workers.length>=(form.tcRequired||1)?"#166534":"#f59e0b", fontSize:"12px", fontWeight:"700" }}>
+              {workers.length} / {form.tcRequired||1} TCs assigned {workers.length>=(form.tcRequired||1)?"✓":""}
+            </span>
+          </div>
+        </div>
+
         <div style={{ marginBottom:"16px" }}><label style={LBL}>Notes</label><textarea style={{ width:"100%", background:"#f8fafc", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#1a2e1a", padding:"8px 10px", fontSize:"13px", outline:"none", boxSizing:"border-box", minHeight:"60px", resize:"vertical" }} value={form.notes} onChange={function(e){setF("notes",e.target.value);}} placeholder="Ex: $120 travel paid..." /></div>
         <div style={{ display:"flex", gap:"10px" }}>
           <button onClick={props.onClose} style={{ flex:1, background:"#f1f5f9", border:"1px solid #cbd5e1", color:"#64748b", borderRadius:"6px", padding:"12px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
@@ -457,27 +507,90 @@ function JobCard(props) {
 function MonthView(props) {
   var jobs=props.jobs, year=props.year, month=props.month;
   var days=getMonthDays(year,month), todayStr=formatDate(new Date()), byDate={};
+  var s1=useState(todayStr); var selectedDay=s1[0]; var setSelectedDay=s1[1];
   jobs.forEach(function(j){if(j.date){if(!byDate[j.date])byDate[j.date]=[];byDate[j.date].push(j);}});
+
+  var selectedJobs=byDate[selectedDay]||[];
+  var selectedDateObj=new Date(selectedDay+"T00:00:00");
+  var dayLabel=selectedDay===todayStr?"Today — "+selectedDay:DAYS[selectedDateObj.getDay()===0?6:selectedDateObj.getDay()-1]+" "+selectedDay;
+
   return (
-    <div style={{ padding:"12px" }}>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", background:"#166534", borderRadius:"8px 8px 0 0" }}>
-        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(d){return <div key={d} style={{ padding:"10px 4px", textAlign:"center", fontSize:"11px", fontWeight:"700", color:"#fff", fontFamily:"monospace" }}>{d}</div>;})}
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", border:"1px solid #e2e8f0", borderTop:"none", borderRadius:"0 0 8px 8px", overflow:"hidden" }}>
-        {days.map(function(day,idx){
-          var ds=formatDate(day.date), dj=byDate[ds]||[], isToday=ds===todayStr;
-          var dowName=DAYS[day.date.getDay()===0?6:day.date.getDay()-1];
-          return (
-            <div key={idx} style={{ minHeight:"110px", borderRight:"1px solid #e2e8f0", borderBottom:"1px solid #e2e8f0", background:day.current?"#fff":"#f8fafc", padding:"6px" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
-                <span style={{ width:"24px", height:"24px", borderRadius:"50%", background:isToday?"#166534":"transparent", color:isToday?"#fff":day.current?"#1a2e1a":"#cbd5e1", fontSize:"12px", fontWeight:isToday?"700":"500", display:"flex", alignItems:"center", justifyContent:"center" }}>{day.date.getDate()}</span>
-                {day.current?<span onClick={function(){props.onAdd(ds,dowName);}} style={{ color:"#22c55e", fontSize:"18px", cursor:"pointer", lineHeight:1 }}>+</span>:null}
+    <div style={{ display:"flex", height:"100%", gap:"0" }}>
+      {/* Calendar */}
+      <div style={{ flex:"1 1 0", minWidth:0, padding:"12px 6px 12px 12px" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", background:"#166534", borderRadius:"8px 8px 0 0" }}>
+          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(d){return <div key={d} style={{ padding:"8px 2px", textAlign:"center", fontSize:"10px", fontWeight:"700", color:"#fff", fontFamily:"monospace" }}>{d}</div>;})}
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", border:"1px solid #e2e8f0", borderTop:"none", borderRadius:"0 0 8px 8px", overflow:"hidden" }}>
+          {days.map(function(day,idx){
+            var ds=formatDate(day.date), dj=byDate[ds]||[], isToday=ds===todayStr, isSel=ds===selectedDay;
+            var dowName=DAYS[day.date.getDay()===0?6:day.date.getDay()-1];
+            return (
+              <div key={idx} onClick={function(){if(day.current)setSelectedDay(ds);}} style={{ minHeight:"90px", borderRight:"1px solid #e2e8f0", borderBottom:"1px solid #e2e8f0", background:isSel?"#f0fdf4":day.current?"#fff":"#f8fafc", padding:"4px", cursor:day.current?"pointer":"default", outline:isSel?"2px solid #166534":"none", outlineOffset:"-2px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"3px" }}>
+                  <span style={{ width:"22px", height:"22px", borderRadius:"50%", background:isToday?"#166534":"transparent", color:isToday?"#fff":day.current?"#1a2e1a":"#cbd5e1", fontSize:"11px", fontWeight:isToday?"700":"500", display:"flex", alignItems:"center", justifyContent:"center" }}>{day.date.getDate()}</span>
+                  {day.current&&dj.length>0?<span style={{ background:"#166534", color:"#fff", borderRadius:"10px", fontSize:"9px", fontWeight:"700", padding:"1px 4px" }}>{dj.length}</span>:null}
+                </div>
+                {dj.slice(0,2).map(function(job){var sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;return <div key={job.id} style={{ background:sc.bg, borderLeft:"2px solid "+sc.border, borderRadius:"2px", padding:"1px 3px", marginBottom:"2px", fontSize:"9px", color:sc.text, fontWeight:"600", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.client}</div>;})}
+                {dj.length>2?<div style={{ fontSize:"9px", color:"#94a3b8" }}>+{dj.length-2}</div>:null}
+                {day.current?<div onClick={function(e){e.stopPropagation();props.onAdd(ds,dowName);}} style={{ color:"#22c55e", fontSize:"14px", textAlign:"right", lineHeight:1, marginTop:"2px" }}>+</div>:null}
               </div>
-              {dj.slice(0,3).map(function(job){var sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;return <div key={job.id} onClick={function(){props.onEdit(job);}} style={{ background:sc.bg, borderLeft:"3px solid "+sc.border, borderRadius:"3px", padding:"2px 5px", marginBottom:"3px", cursor:"pointer", fontSize:"10px", color:sc.text, fontWeight:"600", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.time?" "+job.time+" ":""}{job.client}</div>;})}
-              {dj.length>3?<div style={{ fontSize:"9px", color:"#94a3b8" }}>+{dj.length-3} more</div>:null}
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Day Panel */}
+      <div style={{ width:"320px", minWidth:"280px", borderLeft:"1px solid #e2e8f0", display:"flex", flexDirection:"column", background:"#fff" }}>
+        <div style={{ padding:"12px 16px", background:"#166534", color:"#fff" }}>
+          <div style={{ fontSize:"12px", fontWeight:"700", fontFamily:"monospace", letterSpacing:"0.5px" }}>{dayLabel}</div>
+          <div style={{ fontSize:"11px", color:"#bbf7d0", marginTop:"2px" }}>{selectedJobs.length} job{selectedJobs.length!==1?"s":""} scheduled</div>
+        </div>
+        <div style={{ flex:1, overflowY:"auto", padding:"10px" }}>
+          {selectedJobs.length===0?(
+            <div style={{ textAlign:"center", padding:"40px 20px", color:"#94a3b8" }}>
+              <div style={{ fontSize:"30px", marginBottom:"8px" }}>📋</div>
+              <div style={{ fontSize:"13px", marginBottom:"4px" }}>No jobs this day</div>
+              <button onClick={function(){props.onAdd(selectedDay,DAYS[new Date(selectedDay+"T00:00:00").getDay()===0?6:new Date(selectedDay+"T00:00:00").getDay()-1]);}} style={{ marginTop:"12px", background:"#166534", border:"none", color:"#fff", borderRadius:"6px", padding:"8px 16px", fontSize:"12px", cursor:"pointer", fontWeight:"700" }}>+ Add Job</button>
             </div>
-          );
-        })}
+          ):(
+            selectedJobs.map(function(job){
+              var sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;
+              var workers=Array.isArray(job.workers)?job.workers:[];
+              var utes=[job.teamLeader,job.ute2,job.ute3].filter(Boolean);
+              var mapsUrl="https://maps.google.com/?q="+encodeURIComponent(job.address||"");
+              return (
+                <div key={job.id} style={{ background:"#fff", border:"1px solid "+sc.border+"44", borderLeft:"4px solid "+sc.border, borderRadius:"8px", padding:"12px", marginBottom:"8px", boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"6px" }}>
+                    <div>
+                      <div style={{ color:"#166534", fontWeight:"700", fontSize:"13px", fontFamily:"monospace" }}>{job.client}</div>
+                      <div style={{ color:"#3b82f6", fontSize:"12px", fontWeight:"600" }}>⏰ {job.time}</div>
+                    </div>
+                    <div style={{ display:"flex", gap:"4px", alignItems:"center" }}>
+                      <span style={{ background:sc.bg, color:sc.text, borderRadius:"4px", fontSize:"9px", fontWeight:"700", padding:"2px 6px", textTransform:"uppercase" }}>{job.status}</span>
+                      <button onClick={function(){props.onEdit(job);}} style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#166534", borderRadius:"4px", padding:"2px 7px", fontSize:"11px", cursor:"pointer" }}>Edit</button>
+                    </div>
+                  </div>
+                  {job.address?<div style={{ fontSize:"11px", marginBottom:"5px" }}><a href={mapsUrl} target="_blank" rel="noreferrer" style={{ color:"#166534" }}>📍 {job.address}</a></div>:null}
+                  {job.workOrderRef?<div style={{ fontSize:"10px", color:"#94a3b8", marginBottom:"5px" }}>{job.workOrderRef}</div>:null}
+                  {utes.length>0?<div style={{ fontSize:"11px", marginBottom:"5px" }}>{utes.map(function(u,i){return <span key={i} style={{ marginRight:"8px", color:"#166534", fontWeight:"600" }}>🚐 {u} <span style={{ color:"#94a3b8", fontWeight:"400", fontSize:"10px" }}>({i===0?"1st":i===1?"2nd":"3rd"})</span></span>;})}</div>:null}
+                  {workers.length>0?<div style={{ display:"flex", flexWrap:"wrap", gap:"3px", marginBottom:"6px" }}>{workers.map(function(w){return <span key={w} style={{ background:"#f0fdf4", color:"#166534", borderRadius:"10px", fontSize:"10px", padding:"1px 7px", border:"1px solid #bbf7d0" }}>{w}</span>;})}<span style={{ color:"#94a3b8", fontSize:"10px", alignSelf:"center", marginLeft:"2px" }}>{workers.length}TC</span></div>:null}
+                  {job.notes?<div style={{ color:"#64748b", fontSize:"10px", fontStyle:"italic", borderLeft:"2px solid #bbf7d0", paddingLeft:"6px", background:"#f0fdf4", padding:"4px 6px", borderRadius:"0 3px 3px 0", marginBottom:"6px" }}>{job.notes}</div>:null}
+                  <div style={{ display:"flex", gap:"12px", paddingTop:"6px", borderTop:"1px solid #f1f5f9" }}>
+                    <div onClick={function(){props.onToggle(job.id,"emailsSent");}} style={{ display:"flex", alignItems:"center", gap:"4px", cursor:"pointer" }}>
+                      <div style={{ width:"14px", height:"14px", borderRadius:"3px", background:job.emailsSent?"#22c55e":"#f1f5f9", border:"2px solid "+(job.emailsSent?"#22c55e":"#cbd5e1"), display:"flex", alignItems:"center", justifyContent:"center" }}>{job.emailsSent?<span style={{ color:"#fff", fontSize:"9px" }}>✓</span>:null}</div>
+                      <span style={{ color:job.emailsSent?"#22c55e":"#94a3b8", fontSize:"10px" }}>Emails</span>
+                    </div>
+                    <div onClick={function(){props.onToggle(job.id,"invoiceSent");}} style={{ display:"flex", alignItems:"center", gap:"4px", cursor:"pointer" }}>
+                      <div style={{ width:"14px", height:"14px", borderRadius:"3px", background:job.invoiceSent?"#3b82f6":"#f1f5f9", border:"2px solid "+(job.invoiceSent?"#3b82f6":"#cbd5e1"), display:"flex", alignItems:"center", justifyContent:"center" }}>{job.invoiceSent?<span style={{ color:"#fff", fontSize:"9px" }}>✓</span>:null}</div>
+                      <span style={{ color:job.invoiceSent?"#3b82f6":"#94a3b8", fontSize:"10px" }}>Invoice</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     </div>
   );
@@ -562,8 +675,11 @@ export default function App() {
   // Always have team lists — merge Firebase workers with defaults
   var tlFromDB=workers.filter(function(w){return w.status!=="Inactive"&&getWorkerRoles(w).indexOf("Team Leader")>=0;}).map(function(w){return w.name;});
   var tcFromDB=workers.filter(function(w){return w.status!=="Inactive";}).map(function(w){return w.name;});
+  var uteDriversFromDB=workers.filter(function(w){return w.status!=="Inactive"&&w.canDriveUte;}).map(function(w){return w.name;});
   var tlNames=tlFromDB.length>0?tlFromDB:DEFAULT_TLS;
   var tcNames=tcFromDB.length>0?tcFromDB:DEFAULT_TCS;
+  // Ute drivers: from DB if available, otherwise fallback to TL list
+  var uteDriverNames=uteDriversFromDB.length>0?uteDriversFromDB:tlNames;
 
   function saveJob(form){
     if(form.id){var id=form.id;var data=Object.assign({},form);delete data.id;updateDoc(doc(db,"jobs",id),data).then(function(){setEditingJob(null);}).catch(function(e){alert("Error saving: "+e.message);});}
@@ -625,7 +741,7 @@ export default function App() {
           {currentSection?(<DriveSection section={currentSection} />)
           :tab==="team"?(<TeamPage workers={workers} onEdit={function(w){setEditingWorker(w);}} />)
           :loading?(<div style={{ textAlign:"center", padding:"80px", color:"#94a3b8", fontSize:"14px" }}>Loading...</div>)
-          :viewMode==="month"?(<MonthView jobs={jobs} year={calYear} month={calMonth} onEdit={function(j){setEditingJob(j);}} onAdd={openNewJob} />)
+          :viewMode==="month"?(<MonthView jobs={jobs} year={calYear} month={calMonth} onEdit={function(j){setEditingJob(j);}} onAdd={openNewJob} onToggle={toggle} />)
           :viewMode==="week"?(<WeekView jobs={jobs} onEdit={function(j){setEditingJob(j);}} onAdd={openNewJob} />):(
             <div>
               <div style={{ display:"flex", overflowX:"auto", background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0 8px" }}>
@@ -650,7 +766,7 @@ export default function App() {
         </div>
       </div>
 
-      {editingJob?(<JobModal job={editingJob} allJobs={jobs} tls={tlNames} tcs={tcNames} onSave={saveJob} onClose={function(){setEditingJob(null);}} />):null}
+      {editingJob?(<JobModal job={editingJob} allJobs={jobs} tls={tlNames} tcs={tcNames} uteDrivers={uteDriverNames} onSave={saveJob} onClose={function(){setEditingJob(null);}} />):null}
       {editingWorker?(<WorkerModal worker={editingWorker} onSave={saveWorker} onDelete={deleteWorker} onClose={function(){setEditingWorker(null);}} />):null}
     </div>
   );
