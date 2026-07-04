@@ -13,8 +13,8 @@ const STATUS_COLORS = {
   Cancelled:   { bg:"#fee2e2", text:"#991b1b", border:"#ef4444" },
   Rescheduled: { bg:"#fef9c3", text:"#854d0e", border:"#f59e0b" },
 };
-const TC_TYPES = ["Traffic Controller","Advanced Traffic Controller","Traffic Management Implementer (TMI)","Traffic Management Designer (TMD)"];
-const WORKER_ROLES = ["Traffic Controller","Team Leader","Both"];
+const TC_TYPES = ["TCR","IMP","PWZ"];
+const WORKER_ROLES = ["Traffic Controller","Team Leader"];
 const AVATAR_COLORS = ["#166534","#1e40af","#6b21a8","#854d0e","#991b1b","#065f46","#1e3a8a","#7c2d12"];
 const DEFAULT_TLS = ["Diego","Angel","Hage","Lilian","Victoria","Mick","Hamza","Hamid","Sayed","Bruna Gomes"];
 const DEFAULT_TCS = ["Diego","Ali","Hage","Angel","Victoria","Vivi","Hamid","Hamza","Lilian","Batoul","Mick","Christopher","Marcelo","Khalaf","Sayed","Alpha","Davi","Giovana","Maria Delaix","Momen","Emily","Saad","Bruna"];
@@ -36,7 +36,7 @@ for (var th = 0; th < 24; th++) {
 }
 
 var emptyJob = { day:"Monday", date:"", client:"", time:"", address:"", workOrderRef:"", teamLeader:"", ute2:"", ute3:"", workers:[], uteCount:1, notes:"", status:"Pending", emailsSent:false, invoiceSent:false };
-var emptyWorker = { name:"", role:"Traffic Controller", status:"Active", dob:"", address:"", phone:"", email:"", emergencyContact:"", emergencyPhone:"", driveFolderLink:"", profilePhoto:"", whiteCardNumber:"", whiteCardIssue:"", whiteCardFront:"", whiteCardBack:"", tcCardNumber:"", tcCardType:"Traffic Controller", tcCardIssue:"", tcCardFront:"", tcCardBack:"", licenceNumber:"", licenceCardNumber:"", licenceExpiry:"", licenceFront:"", licenceBack:"", notes:"" };
+var emptyWorker = { name:"", role:"Traffic Controller", status:"Active", dob:"", address:"", phone:"", email:"", emergencyContact:"", emergencyPhone:"", driveFolderLink:"", profilePhoto:"", whiteCardNumber:"", whiteCardIssue:"", whiteCardFront:"", whiteCardBack:"", tcCardNumber:"", tcCardType:"TCR", tcCardIssue:"", tcCardFront:"", tcCardBack:"", licenceNumber:"", licenceCardNumber:"", licenceExpiry:"", licenceFront:"", licenceBack:"", notes:"" };
 
 var INP = { width:"100%", background:"#f8fafc", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#1a2e1a", padding:"8px 10px", fontSize:"13px", outline:"none", boxSizing:"border-box" };
 var LBL = { color:"#166534", fontSize:"11px", fontWeight:"700", letterSpacing:"0.8px", textTransform:"uppercase", marginBottom:"4px", display:"block" };
@@ -161,7 +161,15 @@ function WorkerModal(props) {
               <div style={SHDR}>PERSONAL INFO</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
                 <div style={{ gridColumn:"1/-1" }}><label style={LBL}>Full Name *</label><input style={INP} value={form.name} onChange={function(e){setF("name",e.target.value);}} placeholder="Ex: John Smith" /></div>
-                <div><label style={LBL}>Role</label><select style={INP} value={form.role} onChange={function(e){setF("role",e.target.value);}}>{WORKER_ROLES.map(function(r){return <option key={r}>{r}</option>;})}</select></div>
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={LBL}>Role</label>
+                  <div style={{ display:"flex", gap:"8px" }}>
+                    {WORKER_ROLES.map(function(r){
+                      var sel=form.role===r;
+                      return <button key={r} type="button" onClick={function(){setF("role",r);}} style={{ flex:1, padding:"10px", borderRadius:"8px", border:"2px solid "+(sel?"#166534":"#cbd5e1"), background:sel?"#166534":"#f8fafc", color:sel?"#fff":"#64748b", fontSize:"13px", fontWeight:"700", cursor:"pointer" }}>{r==="Team Leader"?"🚐 Team Leader":"👷 Traffic Controller"}</button>;
+                    })}
+                  </div>
+                </div>
                 <div><label style={LBL}>Status</label><select style={INP} value={form.status} onChange={function(e){setF("status",e.target.value);}}><option>Active</option><option>Inactive</option></select></div>
                 <div><label style={LBL}>Date of Birth</label><input style={INP} type="date" value={form.dob} onChange={function(e){setF("dob",e.target.value);}} /></div>
                 <div><label style={LBL}>Phone</label><input style={INP} value={form.phone} onChange={function(e){setF("phone",e.target.value);}} placeholder="04XX XXX XXX" /></div>
@@ -204,7 +212,15 @@ function WorkerModal(props) {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
                 <div><label style={LBL}>Card Number</label><input style={INP} value={form.tcCardNumber} onChange={function(e){setF("tcCardNumber",e.target.value);}} placeholder="TC card number" /></div>
                 <div><label style={LBL}>Date of Issue</label><input style={INP} type="date" value={form.tcCardIssue} onChange={function(e){setF("tcCardIssue",e.target.value);}} /></div>
-                <div style={{ gridColumn:"1/-1" }}><label style={LBL}>Type of TC</label><select style={INP} value={form.tcCardType} onChange={function(e){setF("tcCardType",e.target.value);}}>{TC_TYPES.map(function(t){return <option key={t}>{t}</option>;})}</select></div>
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={LBL}>Type of TC</label>
+                  <div style={{ display:"flex", gap:"8px" }}>
+                    {TC_TYPES.map(function(t){
+                      var sel=form.tcCardType===t;
+                      return <button key={t} type="button" onClick={function(){setF("tcCardType",t);}} style={{ flex:1, padding:"12px", borderRadius:"8px", border:"2px solid "+(sel?"#166534":"#cbd5e1"), background:sel?"#166534":"#f8fafc", color:sel?"#fff":"#64748b", fontSize:"15px", fontWeight:"700", cursor:"pointer" }}>{t}</button>;
+                    })}
+                  </div>
+                </div>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
                 <PhotoUpload label="Front Photo" value={form.tcCardFront} onChange={function(v){setF("tcCardFront",v);}} path={workerPath+"_tcfront"} />
@@ -287,7 +303,7 @@ function TeamPage(props) {
   var s1=useState("all"); var filterRole=s1[0]; var setFilterRole=s1[1];
   var s2=useState(""); var search=s2[0]; var setSearch=s2[1];
   var filtered=workers.filter(function(w){
-    var mr=filterRole==="all"||(filterRole==="Team Leader"&&(w.role==="Team Leader"||w.role==="Both"))||(filterRole==="Traffic Controller"&&(w.role==="Traffic Controller"||w.role==="Both"));
+    var mr=filterRole==="all"||(w.role===filterRole);
     return mr&&(!search||w.name.toLowerCase().indexOf(search.toLowerCase())>=0);
   });
   var activeCount=workers.filter(function(w){return w.status!=="Inactive";}).length;
@@ -515,7 +531,7 @@ export default function App() {
   },[]);
 
   // Always have team lists — merge Firebase workers with defaults
-  var tlFromDB=workers.filter(function(w){return w.status!=="Inactive"&&(w.role==="Team Leader"||w.role==="Both");}).map(function(w){return w.name;});
+  var tlFromDB=workers.filter(function(w){return w.status!=="Inactive"&&w.role==="Team Leader";}).map(function(w){return w.name;});
   var tcFromDB=workers.filter(function(w){return w.status!=="Inactive";}).map(function(w){return w.name;});
   var tlNames=tlFromDB.length>0?tlFromDB:DEFAULT_TLS;
   var tcNames=tcFromDB.length>0?tcFromDB:DEFAULT_TCS;
