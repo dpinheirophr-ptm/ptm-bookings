@@ -507,90 +507,33 @@ function JobCard(props) {
 function MonthView(props) {
   var jobs=props.jobs, year=props.year, month=props.month;
   var days=getMonthDays(year,month), todayStr=formatDate(new Date()), byDate={};
-  var s1=useState(todayStr); var selectedDay=s1[0]; var setSelectedDay=s1[1];
   jobs.forEach(function(j){if(j.date){if(!byDate[j.date])byDate[j.date]=[];byDate[j.date].push(j);}});
-
-  var selectedJobs=byDate[selectedDay]||[];
-  var selectedDateObj=new Date(selectedDay+"T00:00:00");
-  var dayLabel=selectedDay===todayStr?"Today — "+selectedDay:DAYS[selectedDateObj.getDay()===0?6:selectedDateObj.getDay()-1]+" "+selectedDay;
-
   return (
-    <div style={{ display:"flex", height:"100%", gap:"0" }}>
-      {/* Calendar */}
-      <div style={{ flex:"1 1 0", minWidth:0, padding:"12px 6px 12px 12px" }}>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", background:"#166534", borderRadius:"8px 8px 0 0" }}>
-          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(d){return <div key={d} style={{ padding:"8px 2px", textAlign:"center", fontSize:"10px", fontWeight:"700", color:"#fff", fontFamily:"monospace" }}>{d}</div>;})}
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", border:"1px solid #e2e8f0", borderTop:"none", borderRadius:"0 0 8px 8px", overflow:"hidden" }}>
-          {days.map(function(day,idx){
-            var ds=formatDate(day.date), dj=byDate[ds]||[], isToday=ds===todayStr, isSel=ds===selectedDay;
-            var dowName=DAYS[day.date.getDay()===0?6:day.date.getDay()-1];
-            return (
-              <div key={idx} onClick={function(){if(day.current)setSelectedDay(ds);}} style={{ minHeight:"90px", borderRight:"1px solid #e2e8f0", borderBottom:"1px solid #e2e8f0", background:isSel?"#f0fdf4":day.current?"#fff":"#f8fafc", padding:"4px", cursor:day.current?"pointer":"default", outline:isSel?"2px solid #166534":"none", outlineOffset:"-2px" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"3px" }}>
-                  <span style={{ width:"22px", height:"22px", borderRadius:"50%", background:isToday?"#166534":"transparent", color:isToday?"#fff":day.current?"#1a2e1a":"#cbd5e1", fontSize:"11px", fontWeight:isToday?"700":"500", display:"flex", alignItems:"center", justifyContent:"center" }}>{day.date.getDate()}</span>
-                  {day.current&&dj.length>0?<span style={{ background:"#166534", color:"#fff", borderRadius:"10px", fontSize:"9px", fontWeight:"700", padding:"1px 4px" }}>{dj.length}</span>:null}
-                </div>
-                {dj.slice(0,2).map(function(job){var sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;return <div key={job.id} style={{ background:sc.bg, borderLeft:"2px solid "+sc.border, borderRadius:"2px", padding:"1px 3px", marginBottom:"2px", fontSize:"9px", color:sc.text, fontWeight:"600", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.client}</div>;})}
-                {dj.length>2?<div style={{ fontSize:"9px", color:"#94a3b8" }}>+{dj.length-2}</div>:null}
-                {day.current?<div onClick={function(e){e.stopPropagation();props.onAdd(ds,dowName);}} style={{ color:"#22c55e", fontSize:"14px", textAlign:"right", lineHeight:1, marginTop:"2px" }}>+</div>:null}
-              </div>
-            );
-          })}
-        </div>
+    <div style={{ padding:"12px" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", background:"#166534", borderRadius:"8px 8px 0 0" }}>
+        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(d){return <div key={d} style={{ padding:"10px 4px", textAlign:"center", fontSize:"11px", fontWeight:"700", color:"#fff", fontFamily:"monospace" }}>{d}</div>;})}
       </div>
-
-      {/* Day Panel */}
-      <div style={{ width:"320px", minWidth:"280px", borderLeft:"1px solid #e2e8f0", display:"flex", flexDirection:"column", background:"#fff" }}>
-        <div style={{ padding:"12px 16px", background:"#166534", color:"#fff" }}>
-          <div style={{ fontSize:"12px", fontWeight:"700", fontFamily:"monospace", letterSpacing:"0.5px" }}>{dayLabel}</div>
-          <div style={{ fontSize:"11px", color:"#bbf7d0", marginTop:"2px" }}>{selectedJobs.length} job{selectedJobs.length!==1?"s":""} scheduled</div>
-        </div>
-        <div style={{ flex:1, overflowY:"auto", padding:"10px" }}>
-          {selectedJobs.length===0?(
-            <div style={{ textAlign:"center", padding:"40px 20px", color:"#94a3b8" }}>
-              <div style={{ fontSize:"30px", marginBottom:"8px" }}>📋</div>
-              <div style={{ fontSize:"13px", marginBottom:"4px" }}>No jobs this day</div>
-              <button onClick={function(){props.onAdd(selectedDay,DAYS[new Date(selectedDay+"T00:00:00").getDay()===0?6:new Date(selectedDay+"T00:00:00").getDay()-1]);}} style={{ marginTop:"12px", background:"#166534", border:"none", color:"#fff", borderRadius:"6px", padding:"8px 16px", fontSize:"12px", cursor:"pointer", fontWeight:"700" }}>+ Add Job</button>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", border:"1px solid #e2e8f0", borderTop:"none", borderRadius:"0 0 8px 8px" }}>
+        {days.map(function(day,idx){
+          var ds=formatDate(day.date), dj=byDate[ds]||[], isToday=ds===todayStr;
+          var dowName=DAYS[day.date.getDay()===0?6:day.date.getDay()-1];
+          return (
+            <div key={idx} style={{ minHeight:"100px", borderRight:"1px solid #e2e8f0", borderBottom:"1px solid #e2e8f0", background:day.current?"#fff":"#f8fafc", padding:"5px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"4px" }}>
+                <span style={{ width:"22px", height:"22px", borderRadius:"50%", background:isToday?"#166534":"transparent", color:isToday?"#fff":day.current?"#1a2e1a":"#cbd5e1", fontSize:"11px", fontWeight:isToday?"700":"500", display:"flex", alignItems:"center", justifyContent:"center" }}>{day.date.getDate()}</span>
+                {day.current?<span onClick={function(){props.onAdd(ds,dowName);}} style={{ color:"#22c55e", fontSize:"16px", cursor:"pointer", lineHeight:1 }}>+</span>:null}
+              </div>
+              {dj.map(function(job){
+                var sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;
+                return (
+                  <div key={job.id} onClick={function(){props.onEdit(job);}} style={{ background:sc.bg, borderLeft:"3px solid "+sc.border, borderRadius:"3px", padding:"2px 5px", marginBottom:"2px", cursor:"pointer", fontSize:"10px", color:sc.text, fontWeight:"600", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {job.time?" "+job.time+" ":""}{job.client}
+                  </div>
+                );
+              })}
             </div>
-          ):(
-            selectedJobs.map(function(job){
-              var sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;
-              var workers=Array.isArray(job.workers)?job.workers:[];
-              var utes=[job.teamLeader,job.ute2,job.ute3].filter(Boolean);
-              var mapsUrl="https://maps.google.com/?q="+encodeURIComponent(job.address||"");
-              return (
-                <div key={job.id} style={{ background:"#fff", border:"1px solid "+sc.border+"44", borderLeft:"4px solid "+sc.border, borderRadius:"8px", padding:"12px", marginBottom:"8px", boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"6px" }}>
-                    <div>
-                      <div style={{ color:"#166534", fontWeight:"700", fontSize:"13px", fontFamily:"monospace" }}>{job.client}</div>
-                      <div style={{ color:"#3b82f6", fontSize:"12px", fontWeight:"600" }}>⏰ {job.time}</div>
-                    </div>
-                    <div style={{ display:"flex", gap:"4px", alignItems:"center" }}>
-                      <span style={{ background:sc.bg, color:sc.text, borderRadius:"4px", fontSize:"9px", fontWeight:"700", padding:"2px 6px", textTransform:"uppercase" }}>{job.status}</span>
-                      <button onClick={function(){props.onEdit(job);}} style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#166534", borderRadius:"4px", padding:"2px 7px", fontSize:"11px", cursor:"pointer" }}>Edit</button>
-                    </div>
-                  </div>
-                  {job.address?<div style={{ fontSize:"11px", marginBottom:"5px" }}><a href={mapsUrl} target="_blank" rel="noreferrer" style={{ color:"#166534" }}>📍 {job.address}</a></div>:null}
-                  {job.workOrderRef?<div style={{ fontSize:"10px", color:"#94a3b8", marginBottom:"5px" }}>{job.workOrderRef}</div>:null}
-                  {utes.length>0?<div style={{ fontSize:"11px", marginBottom:"5px" }}>{utes.map(function(u,i){return <span key={i} style={{ marginRight:"8px", color:"#166534", fontWeight:"600" }}>🚐 {u} <span style={{ color:"#94a3b8", fontWeight:"400", fontSize:"10px" }}>({i===0?"1st":i===1?"2nd":"3rd"})</span></span>;})}</div>:null}
-                  {workers.length>0?<div style={{ display:"flex", flexWrap:"wrap", gap:"3px", marginBottom:"6px" }}>{workers.map(function(w){return <span key={w} style={{ background:"#f0fdf4", color:"#166534", borderRadius:"10px", fontSize:"10px", padding:"1px 7px", border:"1px solid #bbf7d0" }}>{w}</span>;})}<span style={{ color:"#94a3b8", fontSize:"10px", alignSelf:"center", marginLeft:"2px" }}>{workers.length}TC</span></div>:null}
-                  {job.notes?<div style={{ color:"#64748b", fontSize:"10px", fontStyle:"italic", borderLeft:"2px solid #bbf7d0", paddingLeft:"6px", background:"#f0fdf4", padding:"4px 6px", borderRadius:"0 3px 3px 0", marginBottom:"6px" }}>{job.notes}</div>:null}
-                  <div style={{ display:"flex", gap:"12px", paddingTop:"6px", borderTop:"1px solid #f1f5f9" }}>
-                    <div onClick={function(){props.onToggle(job.id,"emailsSent");}} style={{ display:"flex", alignItems:"center", gap:"4px", cursor:"pointer" }}>
-                      <div style={{ width:"14px", height:"14px", borderRadius:"3px", background:job.emailsSent?"#22c55e":"#f1f5f9", border:"2px solid "+(job.emailsSent?"#22c55e":"#cbd5e1"), display:"flex", alignItems:"center", justifyContent:"center" }}>{job.emailsSent?<span style={{ color:"#fff", fontSize:"9px" }}>✓</span>:null}</div>
-                      <span style={{ color:job.emailsSent?"#22c55e":"#94a3b8", fontSize:"10px" }}>Emails</span>
-                    </div>
-                    <div onClick={function(){props.onToggle(job.id,"invoiceSent");}} style={{ display:"flex", alignItems:"center", gap:"4px", cursor:"pointer" }}>
-                      <div style={{ width:"14px", height:"14px", borderRadius:"3px", background:job.invoiceSent?"#3b82f6":"#f1f5f9", border:"2px solid "+(job.invoiceSent?"#3b82f6":"#cbd5e1"), display:"flex", alignItems:"center", justifyContent:"center" }}>{job.invoiceSent?<span style={{ color:"#fff", fontSize:"9px" }}>✓</span>:null}</div>
-                      <span style={{ color:job.invoiceSent?"#3b82f6":"#94a3b8", fontSize:"10px" }}>Invoice</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -741,7 +684,7 @@ export default function App() {
           {currentSection?(<DriveSection section={currentSection} />)
           :tab==="team"?(<TeamPage workers={workers} onEdit={function(w){setEditingWorker(w);}} />)
           :loading?(<div style={{ textAlign:"center", padding:"80px", color:"#94a3b8", fontSize:"14px" }}>Loading...</div>)
-          :viewMode==="month"?(<MonthView jobs={jobs} year={calYear} month={calMonth} onEdit={function(j){setEditingJob(j);}} onAdd={openNewJob} onToggle={toggle} />)
+          :viewMode==="month"?(<MonthView jobs={jobs} year={calYear} month={calMonth} onEdit={function(j){setEditingJob(j);}} onAdd={openNewJob} />)
           :viewMode==="week"?(<WeekView jobs={jobs} onEdit={function(j){setEditingJob(j);}} onAdd={openNewJob} />):(
             <div>
               <div style={{ display:"flex", overflowX:"auto", background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0 8px" }}>
