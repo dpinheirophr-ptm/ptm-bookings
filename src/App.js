@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { db, storage } from "./firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { ref as fbRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -16,6 +16,8 @@ const STATUS_COLORS = {
 const TC_TYPES = ["Traffic Controller","Advanced Traffic Controller","Traffic Management Implementer (TMI)","Traffic Management Designer (TMD)"];
 const WORKER_ROLES = ["Traffic Controller","Team Leader","Both"];
 const AVATAR_COLORS = ["#166534","#1e40af","#6b21a8","#854d0e","#991b1b","#065f46","#1e3a8a","#7c2d12"];
+const DEFAULT_TLS = ["Diego","Angel","Hage","Lilian","Victoria","Mick","Hamza","Hamid","Sayed","Bruna Gomes"];
+const DEFAULT_TCS = ["Diego","Ali","Hage","Angel","Victoria","Vivi","Hamid","Hamza","Lilian","Batoul","Mick","Christopher","Marcelo","Khalaf","Sayed","Alpha","Davi","Giovana","Maria Delaix","Momen","Emily","Saad","Bruna"];
 const DRIVE_SECTIONS = [
   { id:"quotes",    icon:"📋", label:"QUOTES",   title:"Quotes",    link:"" },
   { id:"invoices",  icon:"🧾", label:"INVOICES", title:"Invoices",  link:"" },
@@ -34,26 +36,18 @@ for (var th = 0; th < 24; th++) {
 }
 
 var emptyJob = { day:"Monday", date:"", client:"", time:"", address:"", workOrderRef:"", teamLeader:"", ute2:"", ute3:"", workers:[], uteCount:1, notes:"", status:"Pending", emailsSent:false, invoiceSent:false };
-var emptyWorker = {
-  name:"", role:"Traffic Controller", status:"Active", dob:"", address:"", phone:"", email:"",
-  emergencyContact:"", emergencyPhone:"", driveFolderLink:"",
-  profilePhoto:"",
-  whiteCardNumber:"", whiteCardIssue:"", whiteCardFront:"", whiteCardBack:"",
-  tcCardNumber:"", tcCardType:"Traffic Controller", tcCardIssue:"", tcCardFront:"", tcCardBack:"",
-  licenceNumber:"", licenceCardNumber:"", licenceExpiry:"", licenceFront:"", licenceBack:"",
-  notes:""
-};
+var emptyWorker = { name:"", role:"Traffic Controller", status:"Active", dob:"", address:"", phone:"", email:"", emergencyContact:"", emergencyPhone:"", driveFolderLink:"", profilePhoto:"", whiteCardNumber:"", whiteCardIssue:"", whiteCardFront:"", whiteCardBack:"", tcCardNumber:"", tcCardType:"Traffic Controller", tcCardIssue:"", tcCardFront:"", tcCardBack:"", licenceNumber:"", licenceCardNumber:"", licenceExpiry:"", licenceFront:"", licenceBack:"", notes:"" };
 
 var INP = { width:"100%", background:"#f8fafc", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#1a2e1a", padding:"8px 10px", fontSize:"13px", outline:"none", boxSizing:"border-box" };
 var LBL = { color:"#166534", fontSize:"11px", fontWeight:"700", letterSpacing:"0.8px", textTransform:"uppercase", marginBottom:"4px", display:"block" };
-var SECTION_HDR = { color:"#166534", fontSize:"11px", fontWeight:"700", letterSpacing:"1px", marginBottom:"10px", paddingBottom:"6px", borderBottom:"2px solid #bbf7d0" };
+var SHDR = { color:"#166534", fontSize:"11px", fontWeight:"700", letterSpacing:"1px", marginBottom:"10px", paddingBottom:"6px", borderBottom:"2px solid #bbf7d0" };
 
-function padZ(n) { return n < 10 ? "0" + n : "" + n; }
-function formatDate(d) { return d.getFullYear() + "-" + padZ(d.getMonth()+1) + "-" + padZ(d.getDate()); }
+function padZ(n) { return n < 10 ? "0"+n : ""+n; }
+function formatDate(d) { return d.getFullYear()+"-"+padZ(d.getMonth()+1)+"-"+padZ(d.getDate()); }
 function getInitials(name) { var p=(name||"?").split(" "); return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():p[0].slice(0,2).toUpperCase(); }
 function getAvatarColor(name) { return AVATAR_COLORS[(name||"").charCodeAt(0)%AVATAR_COLORS.length]; }
-function isExpired(d) { return d && new Date(d)<new Date(); }
-function isExpiringSoon(d) { if(!d) return false; var diff=(new Date(d)-new Date())/(1000*60*60*24); return diff>=0&&diff<=60; }
+function isExpired(d) { return d&&new Date(d)<new Date(); }
+function isExpiringSoon(d) { if(!d) return false; var diff=(new Date(d)-new Date())/(86400000); return diff>=0&&diff<=60; }
 
 function getMonthDays(year, month) {
   var first=new Date(year,month,1), last=new Date(year,month+1,0);
@@ -77,7 +71,7 @@ function getBusy(jobs, day, excludeId) {
   return busy;
 }
 
-// ─── Photo Upload Component ──────────────────────────────────────
+// ── Photo Upload ──────────────────────────────────────────────────
 function PhotoUpload(props) {
   var s1=useState(false); var loading=s1[0]; var setLoading=s1[1];
   var s2=useState(""); var err=s2[0]; var setErr=s2[1];
@@ -87,50 +81,54 @@ function PhotoUpload(props) {
     if(!file) return;
     setLoading(true); setErr("");
     var path="workers/"+props.path+"/"+Date.now()+"_"+file.name.replace(/\s/g,"_");
-    var sRef=fbRef(storage,path);
-    uploadBytes(sRef,file).then(function(snap){return getDownloadURL(snap.ref);}).then(function(url){
+    uploadBytes(fbRef(storage,path),file).then(function(snap){return getDownloadURL(snap.ref);}).then(function(url){
       props.onChange(url); setLoading(false);
-    }).catch(function(){
-      setErr("Upload failed. Enable Firebase Storage in your Firebase console.");
-      setLoading(false);
-    });
+    }).catch(function(){setErr("Enable Firebase Storage first."); setLoading(false);});
   }
 
-  if(props.value) {
-    return (
-      <div>
-        <label style={LBL}>{props.label}</label>
-        <div style={{ position:"relative", display:"inline-block", width:"100%" }}>
-          <img src={props.value} alt={props.label} style={{ width:"100%", maxHeight:"110px", objectFit:"cover", borderRadius:"6px", border:"1px solid #bbf7d0", display:"block" }} />
-          <button onClick={function(){props.onChange("");}} style={{ position:"absolute", top:"4px", right:"4px", background:"#ef4444", border:"none", color:"#fff", borderRadius:"50%", width:"22px", height:"22px", cursor:"pointer", fontSize:"14px", lineHeight:"1.4" }}>×</button>
-        </div>
+  if(props.value) return (
+    <div>
+      <label style={LBL}>{props.label}</label>
+      <div style={{ position:"relative" }}>
+        <img src={props.value} alt="" style={{ width:"100%", maxHeight:"110px", objectFit:"cover", borderRadius:"6px", border:"1px solid #bbf7d0" }} />
+        <button onClick={function(){props.onChange("");}} style={{ position:"absolute", top:"4px", right:"4px", background:"#ef4444", border:"none", color:"#fff", borderRadius:"50%", width:"22px", height:"22px", cursor:"pointer", fontSize:"14px" }}>×</button>
       </div>
-    );
-  }
+    </div>
+  );
   return (
     <div>
       <label style={LBL}>{props.label}</label>
       <label style={{ display:"block", border:"2px dashed #bbf7d0", borderRadius:"6px", padding:"12px 8px", textAlign:"center", cursor:"pointer", background:"#f0fdf4", color:"#166534", fontSize:"12px", fontWeight:"600" }}>
         <input type="file" accept="image/*" onChange={handleChange} style={{ display:"none" }} />
-        {loading ? "⏳ Uploading..." : "📷 " + props.label}
+        {loading?"⏳ Uploading...":"📷 "+props.label}
       </label>
       {err?<div style={{ color:"#ef4444", fontSize:"10px", marginTop:"3px" }}>{err}</div>:null}
     </div>
   );
 }
 
-// ─── Worker Modal ─────────────────────────────────────────────────
+// ── Worker Modal ──────────────────────────────────────────────────
 function WorkerModal(props) {
   var w=props.worker;
   var init=Object.assign({},emptyWorker,w||{});
   var sf=useState(init); var form=sf[0]; var setForm=sf[1];
-  var s2=useState(0); var activeTab=s2[0]; var setActiveTab=s2[1];
+  var s2=useState(false); var saving=s2[0]; var setSaving=s2[1];
+  var s3=useState(0); var activeTab=s3[0]; var setActiveTab=s3[1];
   function setF(k,v){setForm(function(f){return Object.assign({},f,{[k]:v});});}
   var workerPath=(form.name||"worker").replace(/\s/g,"_").toLowerCase()+"_"+(w&&w.id?w.id:Date.now());
-
   var tabs=["👤 Personal","📋 White Card","🪪 TC Card","🚗 Licence"];
-  var expired=isExpired(form.licenceExpiry);
-  var expiring=isExpiringSoon(form.licenceExpiry);
+
+  function doSave(){
+    if(!form.name||!form.name.trim()){alert("Please enter a name.");return;}
+    setSaving(true);
+    props.onSave(form);
+  }
+
+  var SaveBtn = (
+    <button onClick={doSave} disabled={saving} style={{ background:"linear-gradient(135deg,#166534,#14532d)", border:"none", color:"#fff", borderRadius:"6px", padding:"10px 20px", fontSize:"13px", cursor:"pointer", fontWeight:"700", opacity:saving?0.7:1 }}>
+      {saving?"Saving...":"💾 Save Worker"}
+    </button>
+  );
 
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.6)", zIndex:9999, overflowY:"auto" }}>
@@ -139,9 +137,7 @@ function WorkerModal(props) {
         {/* Header */}
         <div style={{ background:"linear-gradient(135deg,#166534,#14532d)", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-            {form.profilePhoto ? (
-              <img src={form.profilePhoto} alt="" style={{ width:"44px", height:"44px", borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,255,255,0.5)" }} />
-            ) : (
+            {form.profilePhoto?(<img src={form.profilePhoto} alt="" style={{ width:"44px", height:"44px", borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,255,255,0.5)" }} />):(
               <div style={{ width:"44px", height:"44px", borderRadius:"50%", background:"rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:"700", fontSize:"16px" }}>{getInitials(form.name)}</div>
             )}
             <div>
@@ -159,10 +155,10 @@ function WorkerModal(props) {
 
         <div style={{ padding:"20px" }}>
 
-          {/* TAB 0: Personal */}
+          {/* Tab 0: Personal */}
           {activeTab===0?(
             <div>
-              <div style={SECTION_HDR}>PERSONAL INFO</div>
+              <div style={SHDR}>PERSONAL INFO</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
                 <div style={{ gridColumn:"1/-1" }}><label style={LBL}>Full Name *</label><input style={INP} value={form.name} onChange={function(e){setF("name",e.target.value);}} placeholder="Ex: John Smith" /></div>
                 <div><label style={LBL}>Role</label><select style={INP} value={form.role} onChange={function(e){setF("role",e.target.value);}}>{WORKER_ROLES.map(function(r){return <option key={r}>{r}</option>;})}</select></div>
@@ -172,27 +168,24 @@ function WorkerModal(props) {
                 <div style={{ gridColumn:"1/-1" }}><label style={LBL}>Email</label><input style={INP} value={form.email} onChange={function(e){setF("email",e.target.value);}} placeholder="email@example.com" /></div>
                 <div style={{ gridColumn:"1/-1" }}><label style={LBL}>Address</label><input style={INP} value={form.address} onChange={function(e){setF("address",e.target.value);}} placeholder="Full address" /></div>
               </div>
-
-              <div style={SECTION_HDR}>EMERGENCY CONTACT</div>
+              <div style={SHDR}>EMERGENCY CONTACT</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
                 <div><label style={LBL}>Contact Name</label><input style={INP} value={form.emergencyContact} onChange={function(e){setF("emergencyContact",e.target.value);}} placeholder="Name" /></div>
                 <div><label style={LBL}>Contact Phone</label><input style={INP} value={form.emergencyPhone} onChange={function(e){setF("emergencyPhone",e.target.value);}} placeholder="04XX XXX XXX" /></div>
               </div>
-
-              <div style={SECTION_HDR}>PROFILE PHOTO & DRIVE</div>
+              <div style={SHDR}>PROFILE & DRIVE</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
-                <div><PhotoUpload label="Profile Photo" value={form.profilePhoto} onChange={function(v){setF("profilePhoto",v);}} path={workerPath+"_profile"} /></div>
-                <div><label style={LBL}>Google Drive Folder Link</label><input style={INP} value={form.driveFolderLink} onChange={function(e){setF("driveFolderLink",e.target.value);}} placeholder="Paste Drive link here" /><div style={{ color:"#94a3b8", fontSize:"10px", marginTop:"4px" }}>Paste the folder link after creating it in Drive</div></div>
+                <PhotoUpload label="Profile Photo" value={form.profilePhoto} onChange={function(v){setF("profilePhoto",v);}} path={workerPath+"_profile"} />
+                <div><label style={LBL}>Google Drive Folder</label><input style={INP} value={form.driveFolderLink} onChange={function(e){setF("driveFolderLink",e.target.value);}} placeholder="Paste Drive link..." /><div style={{ color:"#94a3b8", fontSize:"10px", marginTop:"4px" }}>Create folder in Drive, then paste link here</div></div>
               </div>
-
               <div style={{ marginBottom:"4px" }}><label style={LBL}>Notes</label><textarea style={{ width:"100%", background:"#f8fafc", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#1a2e1a", padding:"8px 10px", fontSize:"13px", outline:"none", boxSizing:"border-box", minHeight:"60px", resize:"vertical" }} value={form.notes} onChange={function(e){setF("notes",e.target.value);}} placeholder="Additional notes..." /></div>
             </div>
           ):null}
 
-          {/* TAB 1: White Card */}
+          {/* Tab 1: White Card */}
           {activeTab===1?(
             <div>
-              <div style={SECTION_HDR}>WHITE CARD (Construction Induction)</div>
+              <div style={SHDR}>WHITE CARD (Construction Induction)</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"16px" }}>
                 <div><label style={LBL}>Card Number</label><input style={INP} value={form.whiteCardNumber} onChange={function(e){setF("whiteCardNumber",e.target.value);}} placeholder="Card number" /></div>
                 <div><label style={LBL}>Date of Issue</label><input style={INP} type="date" value={form.whiteCardIssue} onChange={function(e){setF("whiteCardIssue",e.target.value);}} /></div>
@@ -204,10 +197,10 @@ function WorkerModal(props) {
             </div>
           ):null}
 
-          {/* TAB 2: TC Card */}
+          {/* Tab 2: TC Card */}
           {activeTab===2?(
             <div>
-              <div style={SECTION_HDR}>TRAFFIC CONTROLLER CARD</div>
+              <div style={SHDR}>TRAFFIC CONTROLLER CARD</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
                 <div><label style={LBL}>Card Number</label><input style={INP} value={form.tcCardNumber} onChange={function(e){setF("tcCardNumber",e.target.value);}} placeholder="TC card number" /></div>
                 <div><label style={LBL}>Date of Issue</label><input style={INP} type="date" value={form.tcCardIssue} onChange={function(e){setF("tcCardIssue",e.target.value);}} /></div>
@@ -220,17 +213,14 @@ function WorkerModal(props) {
             </div>
           ):null}
 
-          {/* TAB 3: Driver's Licence */}
+          {/* Tab 3: Driver's Licence */}
           {activeTab===3?(
             <div>
-              <div style={SECTION_HDR}>DRIVER'S LICENCE</div>
+              <div style={SHDR}>DRIVER'S LICENCE</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
                 <div><label style={LBL}>Licence Number</label><input style={INP} value={form.licenceNumber} onChange={function(e){setF("licenceNumber",e.target.value);}} placeholder="Licence number" /></div>
                 <div><label style={LBL}>Card Number</label><input style={INP} value={form.licenceCardNumber} onChange={function(e){setF("licenceCardNumber",e.target.value);}} placeholder="Card number" /></div>
-                <div style={{ gridColumn:"1/-1" }}>
-                  <label style={LBL}>Expiry Date {expired?"🔴 EXPIRED":expiring?"🟡 Expiring soon":""}</label>
-                  <input style={Object.assign({},INP,{borderColor:expired?"#ef4444":expiring?"#f59e0b":"#cbd5e1"})} type="date" value={form.licenceExpiry} onChange={function(e){setF("licenceExpiry",e.target.value);}} />
-                </div>
+                <div style={{ gridColumn:"1/-1" }}><label style={LBL}>Expiry Date {isExpired(form.licenceExpiry)?"🔴 EXPIRED":isExpiringSoon(form.licenceExpiry)?"🟡 Expiring soon":""}</label><input style={Object.assign({},INP,{borderColor:isExpired(form.licenceExpiry)?"#ef4444":isExpiringSoon(form.licenceExpiry)?"#f59e0b":"#cbd5e1"})} type="date" value={form.licenceExpiry} onChange={function(e){setF("licenceExpiry",e.target.value);}} /></div>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
                 <PhotoUpload label="Front Photo" value={form.licenceFront} onChange={function(v){setF("licenceFront",v);}} path={workerPath+"_licfront"} />
@@ -238,38 +228,32 @@ function WorkerModal(props) {
               </div>
             </div>
           ):null}
-
         </div>
 
-        {/* Footer */}
-        <div style={{ padding:"16px 20px", borderTop:"1px solid #f1f5f9", display:"flex", gap:"10px", background:"#fafafa" }}>
-          {w&&w.id?<button onClick={function(){props.onDelete(w.id);}} style={{ background:"#fff0f0", border:"1px solid #fecaca", color:"#ef4444", borderRadius:"6px", padding:"10px 14px", fontSize:"12px", cursor:"pointer", fontWeight:"600" }}>🗑 Delete</button>:null}
-
-          {activeTab>0?<button onClick={function(){setActiveTab(activeTab-1);}} style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#166534", borderRadius:"6px", padding:"10px 14px", fontSize:"12px", cursor:"pointer" }}>← Back</button>:null}
-          <div style={{ flex:1 }}></div>
-          <button onClick={props.onClose} style={{ background:"#f1f5f9", border:"1px solid #cbd5e1", color:"#64748b", borderRadius:"6px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
-          {activeTab<3?(
-            <button onClick={function(){setActiveTab(activeTab+1);}} style={{ background:"linear-gradient(135deg,#166534,#14532d)", border:"none", color:"#fff", borderRadius:"6px", padding:"10px 16px", fontSize:"13px", cursor:"pointer", fontWeight:"700" }}>Next →</button>
-          ):(
-            <button onClick={function(){props.onSave(form);}} style={{ background:"linear-gradient(135deg,#166534,#14532d)", border:"none", color:"#fff", borderRadius:"6px", padding:"10px 20px", fontSize:"13px", cursor:"pointer", fontWeight:"700" }}>💾 Save Worker</button>
-          )}
+        {/* Footer — Save always visible */}
+        <div style={{ padding:"16px 20px", borderTop:"1px solid #f1f5f9", background:"#fafafa" }}>
+          <div style={{ display:"flex", gap:"8px", alignItems:"center", marginBottom:"8px" }}>
+            {tabs.map(function(t,i){return <button key={i} onClick={function(){setActiveTab(i);}} style={{ flex:1, background:activeTab===i?"#166534":"#f0fdf4", border:"1px solid "+(activeTab===i?"#166534":"#bbf7d0"), color:activeTab===i?"#fff":"#166534", borderRadius:"6px", padding:"6px 4px", fontSize:"10px", fontWeight:"700", cursor:"pointer" }}>{t.split(" ")[0]}</button>;})}
+          </div>
+          <div style={{ display:"flex", gap:"10px" }}>
+            {w&&w.id?<button onClick={function(){props.onDelete(w.id);}} style={{ background:"#fff0f0", border:"1px solid #fecaca", color:"#ef4444", borderRadius:"6px", padding:"10px 14px", fontSize:"12px", cursor:"pointer" }}>🗑</button>:null}
+            <button onClick={props.onClose} style={{ flex:1, background:"#f1f5f9", border:"1px solid #cbd5e1", color:"#64748b", borderRadius:"6px", padding:"10px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
+            {SaveBtn}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Worker Card ──────────────────────────────────────────────────
+// ── Worker Card ───────────────────────────────────────────────────
 function WorkerCard(props) {
   var w=props.worker;
-  var lcExpired=isExpired(w.licenceExpiry);
-  var lcExpiring=isExpiringSoon(w.licenceExpiry);
   var roleColor=w.role==="Team Leader"?"#1e40af":w.role==="Both"?"#6b21a8":"#166534";
   var roleBg=w.role==="Team Leader"?"#dbeafe":w.role==="Both"?"#f3e8ff":"#dcfce7";
-
+  var lcExp=isExpired(w.licenceExpiry), lcExp2=isExpiringSoon(w.licenceExpiry);
   return (
     <div onClick={function(){props.onEdit(w);}} style={{ background:"#fff", borderRadius:"10px", border:"1px solid #e2e8f0", boxShadow:"0 1px 4px rgba(0,0,0,0.06)", cursor:"pointer", overflow:"hidden", opacity:w.status==="Inactive"?0.6:1 }}>
-      {/* Photo strip */}
       {w.profilePhoto?(
         <img src={w.profilePhoto} alt="" style={{ width:"100%", height:"80px", objectFit:"cover", display:"block" }} />
       ):(
@@ -277,64 +261,47 @@ function WorkerCard(props) {
           <span style={{ color:"#fff", fontSize:"28px", fontWeight:"700" }}>{getInitials(w.name)}</span>
         </div>
       )}
-
       <div style={{ padding:"12px" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"6px" }}>
-          <div style={{ fontWeight:"700", fontSize:"13px", color:"#1a2e1a", flex:1, marginRight:"6px" }}>{w.name}</div>
-          {w.status==="Inactive"?<span style={{ color:"#94a3b8", fontSize:"9px", fontWeight:"700" }}>INACTIVE</span>:null}
-        </div>
+        <div style={{ fontWeight:"700", fontSize:"13px", color:"#1a2e1a", marginBottom:"4px" }}>{w.name}</div>
         <span style={{ background:roleBg, color:roleColor, borderRadius:"4px", fontSize:"10px", fontWeight:"700", padding:"2px 7px" }}>{w.role}</span>
-
         <div style={{ marginTop:"8px", fontSize:"11px", color:"#64748b" }}>
           {w.phone?<div style={{ marginBottom:"3px" }}>📞 {w.phone}</div>:null}
-          {w.tcCardNumber?<div style={{ marginBottom:"3px" }}>🪪 TC: {w.tcCardNumber} <span style={{ color:"#94a3b8" }}>({w.tcCardType&&w.tcCardType.split(" ")[0]})</span></div>:null}
-          {w.licenceExpiry?(
-            <div style={{ color:lcExpired?"#ef4444":lcExpiring?"#f59e0b":"#64748b", fontWeight:lcExpired||lcExpiring?"700":"400" }}>
-              🚗 {lcExpired?"EXPIRED":lcExpiring?"Exp soon":w.licenceExpiry}
-            </div>
-          ):null}
+          {w.tcCardNumber?<div style={{ marginBottom:"3px" }}>🪪 TC: {w.tcCardNumber}</div>:null}
+          {w.licenceExpiry?<div style={{ color:lcExp?"#ef4444":lcExp2?"#f59e0b":"#64748b", fontWeight:lcExp||lcExp2?"700":"400" }}>🚗 {lcExp?"EXPIRED":lcExp2?"Expires soon":w.licenceExpiry}</div>:null}
         </div>
-
-        <div style={{ display:"flex", gap:"6px", marginTop:"8px" }}>
+        <div style={{ display:"flex", gap:"4px", marginTop:"8px", flexWrap:"wrap" }}>
           {w.whiteCardNumber?<span style={{ background:"#f0fdf4", color:"#166534", fontSize:"9px", fontWeight:"700", padding:"2px 5px", borderRadius:"3px", border:"1px solid #bbf7d0" }}>WHITE ✓</span>:null}
           {w.tcCardNumber?<span style={{ background:"#dbeafe", color:"#1e40af", fontSize:"9px", fontWeight:"700", padding:"2px 5px", borderRadius:"3px", border:"1px solid #93c5fd" }}>TC ✓</span>:null}
           {w.licenceNumber?<span style={{ background:"#f3e8ff", color:"#6b21a8", fontSize:"9px", fontWeight:"700", padding:"2px 5px", borderRadius:"3px", border:"1px solid #d8b4fe" }}>LIC ✓</span>:null}
           {w.driveFolderLink?<a href={w.driveFolderLink} target="_blank" rel="noreferrer" onClick={function(e){e.stopPropagation();}} style={{ background:"#fef9c3", color:"#854d0e", fontSize:"9px", fontWeight:"700", padding:"2px 5px", borderRadius:"3px", border:"1px solid #fde047", textDecoration:"none" }}>📁 DRIVE</a>:null}
         </div>
-
-        <div style={{ marginTop:"8px", paddingTop:"8px", borderTop:"1px solid #f1f5f9", color:"#166534", fontSize:"10px", fontWeight:"600", textAlign:"right" }}>Tap to edit →</div>
+        <div style={{ marginTop:"8px", paddingTop:"6px", borderTop:"1px solid #f1f5f9", color:"#166534", fontSize:"10px", fontWeight:"600", textAlign:"right" }}>Tap to edit →</div>
       </div>
     </div>
   );
 }
 
-// ─── Team Page ────────────────────────────────────────────────────
+// ── Team Page ─────────────────────────────────────────────────────
 function TeamPage(props) {
   var workers=props.workers;
   var s1=useState("all"); var filterRole=s1[0]; var setFilterRole=s1[1];
   var s2=useState(""); var search=s2[0]; var setSearch=s2[1];
-
   var filtered=workers.filter(function(w){
     var mr=filterRole==="all"||(filterRole==="Team Leader"&&(w.role==="Team Leader"||w.role==="Both"))||(filterRole==="Traffic Controller"&&(w.role==="Traffic Controller"||w.role==="Both"));
-    var ms=!search||w.name.toLowerCase().indexOf(search.toLowerCase())>=0;
-    return mr&&ms;
+    return mr&&(!search||w.name.toLowerCase().indexOf(search.toLowerCase())>=0);
   });
-
   var activeCount=workers.filter(function(w){return w.status!=="Inactive";}).length;
-  var lcExpiredCount=workers.filter(function(w){return isExpired(w.licenceExpiry);}).length;
-  var lcExpiringCount=workers.filter(function(w){return isExpiringSoon(w.licenceExpiry);}).length;
-
+  var expiredCount=workers.filter(function(w){return isExpired(w.licenceExpiry);}).length;
+  var expiringCount=workers.filter(function(w){return isExpiringSoon(w.licenceExpiry);}).length;
   return (
     <div style={{ padding:"16px", maxWidth:"900px", margin:"0 auto" }}>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"10px", marginBottom:"16px" }}>
-        {[{l:"Active Workers",v:activeCount,c:"#166534",bg:"#dcfce7"},{l:"Licences Expiring",v:lcExpiringCount,c:"#854d0e",bg:"#fef9c3"},{l:"Licences Expired",v:lcExpiredCount,c:"#991b1b",bg:"#fee2e2"}].map(function(s){return <div key={s.l} style={{ background:s.bg, borderRadius:"8px", padding:"12px 16px", border:"1px solid "+s.c+"44" }}><div style={{ color:s.c, fontSize:"24px", fontWeight:"700", fontFamily:"monospace" }}>{s.v}</div><div style={{ color:s.c, fontSize:"11px", fontWeight:"600" }}>{s.l}</div></div>;})}
+        {[{l:"Active Workers",v:activeCount,c:"#166534",bg:"#dcfce7"},{l:"Licences Expiring",v:expiringCount,c:"#854d0e",bg:"#fef9c3"},{l:"Licences Expired",v:expiredCount,c:"#991b1b",bg:"#fee2e2"}].map(function(s){return <div key={s.l} style={{ background:s.bg, borderRadius:"8px", padding:"12px 16px", border:"1px solid "+s.c+"44" }}><div style={{ color:s.c, fontSize:"24px", fontWeight:"700", fontFamily:"monospace" }}>{s.v}</div><div style={{ color:s.c, fontSize:"11px", fontWeight:"600" }}>{s.l}</div></div>;})}
       </div>
-
       <div style={{ display:"flex", gap:"8px", marginBottom:"16px", flexWrap:"wrap" }}>
         <input style={{ flex:1, minWidth:"150px", background:"#fff", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#1a2e1a", padding:"8px 12px", fontSize:"13px", outline:"none" }} value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="🔍  Search by name..." />
-        {["all","Team Leader","Traffic Controller"].map(function(r){return <button key={r} onClick={function(){setFilterRole(r);}} style={{ background:filterRole===r?"#166534":"#fff", border:"1px solid "+(filterRole===r?"#166534":"#cbd5e1"), color:filterRole===r?"#fff":"#64748b", borderRadius:"6px", padding:"8px 14px", fontSize:"12px", fontWeight:"600", cursor:"pointer" }}>{r==="all"?"All":r==="Team Leader"?"Team Leaders":"Traffic Controllers"}</button>;}) }
+        {["all","Team Leader","Traffic Controller"].map(function(r){return <button key={r} onClick={function(){setFilterRole(r);}} style={{ background:filterRole===r?"#166534":"#fff", border:"1px solid "+(filterRole===r?"#166534":"#cbd5e1"), color:filterRole===r?"#fff":"#64748b", borderRadius:"6px", padding:"8px 14px", fontSize:"12px", fontWeight:"600", cursor:"pointer" }}>{r==="all"?"All":r==="Team Leader"?"Team Leaders":"TCs"}</button>;}) }
       </div>
-
       {filtered.length===0?(
         <div style={{ textAlign:"center", padding:"60px", color:"#94a3b8" }}>
           <div style={{ fontSize:"40px", marginBottom:"10px" }}>👷</div>
@@ -350,17 +317,22 @@ function TeamPage(props) {
   );
 }
 
-// ─── Job Modal ────────────────────────────────────────────────────
+// ── Job Modal ─────────────────────────────────────────────────────
 function JobModal(props) {
   var job=props.job, tls=props.tls, tcs=props.tcs;
   var initW=Array.isArray(job.workers)?job.workers.slice():[];
   var init=Object.assign({},emptyJob,job,{workers:initW});
   var sf=useState(init); var form=sf[0]; var setForm=sf[1];
+  var s2=useState(false); var saving=s2[0]; var setSaving=s2[1];
   var busy=getBusy(props.allJobs||[],form.day,job.id||null);
   var workers=Array.isArray(form.workers)?form.workers:[];
   function setF(k,v){setForm(function(f){return Object.assign({},f,{[k]:v});});}
   function toggleW(name){var w=workers.slice(),idx=w.indexOf(name);if(idx>=0)w.splice(idx,1);else w.push(name);setF("workers",w);}
-
+  function doSave(){
+    if(!form.client||!form.client.trim()){alert("Please enter a client name.");return;}
+    setSaving(true);
+    props.onSave(form);
+  }
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.55)", zIndex:9999, overflowY:"auto" }}>
       <div style={{ background:"#fff", borderRadius:"12px", padding:"20px", maxWidth:"500px", margin:"30px auto 60px auto", boxShadow:"0 10px 40px rgba(0,0,0,0.2)", border:"1px solid #bbf7d0" }}>
@@ -368,7 +340,7 @@ function JobModal(props) {
           <h2 style={{ color:"#166534", margin:0, fontSize:"16px", fontFamily:"monospace" }}>{job.id?"Edit Job":"New Job"}</h2>
           <button onClick={props.onClose} style={{ background:"none", border:"none", fontSize:"24px", cursor:"pointer", color:"#94a3b8" }}>×</button>
         </div>
-        <div style={{ marginBottom:"12px" }}><label style={LBL}>Client</label><input style={INP} value={form.client} onChange={function(e){setF("client",e.target.value);}} placeholder="Ex: Kwikflo, Ventia..." /></div>
+        <div style={{ marginBottom:"12px" }}><label style={LBL}>Client *</label><input style={INP} value={form.client} onChange={function(e){setF("client",e.target.value);}} placeholder="Ex: Kwikflo, Ventia..." /></div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"12px" }}>
           <div><label style={LBL}>Day</label><select style={INP} value={form.day} onChange={function(e){setF("day",e.target.value);}}>{DAYS.map(function(d){return <option key={d}>{d}</option>;})}</select></div>
           <div><label style={LBL}>Date</label><input style={INP} type="date" value={form.date} onChange={function(e){setF("date",e.target.value);}} /></div>
@@ -378,9 +350,9 @@ function JobModal(props) {
         <div style={{ marginBottom:"12px" }}><label style={LBL}>Address</label><input style={INP} value={form.address} onChange={function(e){setF("address",e.target.value);}} placeholder="Ex: 2 Wilson St Chatswood" /></div>
         <div style={{ marginBottom:"12px" }}><label style={LBL}>Work Order Ref</label><input style={INP} value={form.workOrderRef} onChange={function(e){setF("workOrderRef",e.target.value);}} placeholder="Ex: WOR201300821144" /></div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"12px" }}>
-          <div><label style={LBL}>Team Leader (1st Ute)</label><select style={INP} value={form.teamLeader} onChange={function(e){setF("teamLeader",e.target.value);}}><option value="">Select...</option>{tls.map(function(n){var b=busy[n]&&form.teamLeader!==n;return <option key={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
-          <div><label style={LBL}>2nd Ute</label><select style={INP} value={form.ute2||""} onChange={function(e){setF("ute2",e.target.value);}}><option value="">None</option>{tls.map(function(n){var b=busy[n]&&form.ute2!==n;return <option key={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
-          <div><label style={LBL}>3rd Ute</label><select style={INP} value={form.ute3||""} onChange={function(e){setF("ute3",e.target.value);}}><option value="">None</option>{tls.map(function(n){var b=busy[n]&&form.ute3!==n;return <option key={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
+          <div><label style={LBL}>Team Leader (1st Ute)</label><select style={INP} value={form.teamLeader} onChange={function(e){setF("teamLeader",e.target.value);}}><option value="">Select...</option>{tls.map(function(n){var b=busy[n]&&form.teamLeader!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
+          <div><label style={LBL}>2nd Ute</label><select style={INP} value={form.ute2||""} onChange={function(e){setF("ute2",e.target.value);}}><option value="">None</option>{tls.map(function(n){var b=busy[n]&&form.ute2!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
+          <div><label style={LBL}>3rd Ute</label><select style={INP} value={form.ute3||""} onChange={function(e){setF("ute3",e.target.value);}}><option value="">None</option>{tls.map(function(n){var b=busy[n]&&form.ute3!==n;return <option key={n} value={n} disabled={!!b}>{b?n+" (busy)":n}</option>;})}</select></div>
           <div><label style={LBL}>Nr Utes</label><input style={INP} type="number" min="1" value={form.uteCount} onChange={function(e){setF("uteCount",Number(e.target.value));}} /></div>
         </div>
         <div style={{ marginBottom:"12px" }}>
@@ -393,7 +365,7 @@ function JobModal(props) {
         <div style={{ marginBottom:"16px" }}><label style={LBL}>Notes</label><textarea style={{ width:"100%", background:"#f8fafc", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#1a2e1a", padding:"8px 10px", fontSize:"13px", outline:"none", boxSizing:"border-box", minHeight:"60px", resize:"vertical" }} value={form.notes} onChange={function(e){setF("notes",e.target.value);}} placeholder="Ex: $120 travel paid..." /></div>
         <div style={{ display:"flex", gap:"10px" }}>
           <button onClick={props.onClose} style={{ flex:1, background:"#f1f5f9", border:"1px solid #cbd5e1", color:"#64748b", borderRadius:"6px", padding:"12px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
-          <button onClick={function(){props.onSave(form);}} style={{ flex:2, background:"linear-gradient(135deg,#166534,#14532d)", border:"none", color:"#fff", borderRadius:"6px", padding:"12px", fontSize:"13px", cursor:"pointer", fontWeight:"700" }}>Save Job</button>
+          <button onClick={doSave} disabled={saving} style={{ flex:2, background:"linear-gradient(135deg,#166534,#14532d)", border:"none", color:"#fff", borderRadius:"6px", padding:"12px", fontSize:"13px", cursor:"pointer", fontWeight:"700", opacity:saving?0.7:1 }}>{saving?"Saving...":"Save Job"}</button>
         </div>
       </div>
     </div>
@@ -401,7 +373,7 @@ function JobModal(props) {
 }
 
 function JobCard(props) {
-  var job=props.job,sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;
+  var job=props.job, sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;
   var workers=Array.isArray(job.workers)?job.workers:[];
   var utes=[job.teamLeader,job.ute2,job.ute3].filter(Boolean);
   var mapsUrl="https://maps.google.com/?q="+encodeURIComponent(job.address||"");
@@ -438,8 +410,8 @@ function JobCard(props) {
 }
 
 function MonthView(props) {
-  var jobs=props.jobs,year=props.year,month=props.month;
-  var days=getMonthDays(year,month),todayStr=formatDate(new Date()),byDate={};
+  var jobs=props.jobs, year=props.year, month=props.month;
+  var days=getMonthDays(year,month), todayStr=formatDate(new Date()), byDate={};
   jobs.forEach(function(j){if(j.date){if(!byDate[j.date])byDate[j.date]=[];byDate[j.date].push(j);}});
   return (
     <div style={{ padding:"12px" }}>
@@ -448,7 +420,7 @@ function MonthView(props) {
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", border:"1px solid #e2e8f0", borderTop:"none", borderRadius:"0 0 8px 8px", overflow:"hidden" }}>
         {days.map(function(day,idx){
-          var ds=formatDate(day.date),dj=byDate[ds]||[],isToday=ds===todayStr;
+          var ds=formatDate(day.date), dj=byDate[ds]||[], isToday=ds===todayStr;
           var dowName=DAYS[day.date.getDay()===0?6:day.date.getDay()-1];
           return (
             <div key={idx} style={{ minHeight:"110px", borderRight:"1px solid #e2e8f0", borderBottom:"1px solid #e2e8f0", background:day.current?"#fff":"#f8fafc", padding:"6px" }}>
@@ -496,10 +468,8 @@ function DriveSection(props) {
       <div style={{ background:"#fff", borderRadius:"16px", padding:"40px", maxWidth:"440px", width:"100%", border:"1px solid #bbf7d0", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", textAlign:"center" }}>
         <div style={{ fontSize:"56px", marginBottom:"16px" }}>{s.icon}</div>
         <h2 style={{ color:"#166534", fontFamily:"monospace", fontSize:"20px", fontWeight:"700", margin:"0 0 8px 0" }}>{s.title}</h2>
-        <p style={{ color:"#64748b", fontSize:"13px", marginBottom:"24px", lineHeight:1.6 }}>This section links to your Google Drive folder.<br/>Share the link to connect it here.</p>
-        {s.link?(
-          <a href={s.link} target="_blank" rel="noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"linear-gradient(135deg,#166534,#14532d)", color:"#fff", borderRadius:"8px", padding:"12px 24px", fontSize:"14px", fontWeight:"700", textDecoration:"none" }}>📂 Open in Google Drive</a>
-        ):(
+        <p style={{ color:"#64748b", fontSize:"13px", marginBottom:"24px", lineHeight:1.6 }}>This section links to your Google Drive folder.</p>
+        {s.link?(<a href={s.link} target="_blank" rel="noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"linear-gradient(135deg,#166534,#14532d)", color:"#fff", borderRadius:"8px", padding:"12px 24px", fontSize:"14px", fontWeight:"700", textDecoration:"none" }}>📂 Open in Google Drive</a>):(
           <div style={{ background:"#f0fdf4", border:"2px dashed #bbf7d0", borderRadius:"10px", padding:"20px" }}>
             <p style={{ color:"#94a3b8", fontSize:"12px", margin:"0 0 4px 0" }}>No Drive folder linked yet.</p>
             <p style={{ color:"#166534", fontSize:"12px", fontWeight:"600", margin:0 }}>Create the folder and we'll link it here!</p>
@@ -510,7 +480,7 @@ function DriveSection(props) {
   );
 }
 
-// ─── Main App ─────────────────────────────────────────────────────
+// ── Main App ──────────────────────────────────────────────────────
 export default function App() {
   var s1=useState([]); var jobs=s1[0]; var setJobs=s1[1];
   var s2=useState([]); var workers=s2[0]; var setWorkers=s2[1];
@@ -525,40 +495,48 @@ export default function App() {
   var s10=useState(now.getMonth()); var calMonth=s10[0]; var setCalMonth=s10[1];
 
   useEffect(function(){
-    var q=query(collection(db,"jobs"),orderBy("date","asc"));
-    var u=onSnapshot(q,function(snap){setJobs(snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}));setLoading(false);});
-    return u;
+    // No orderBy to avoid index issues — sort in code
+    var unsub=onSnapshot(collection(db,"jobs"),function(snap){
+      var list=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      list.sort(function(a,b){return (a.date||"").localeCompare(b.date||"");});
+      setJobs(list);
+      setLoading(false);
+    });
+    return unsub;
   },[]);
 
   useEffect(function(){
-    var q=query(collection(db,"workers"),orderBy("name","asc"));
-    var u=onSnapshot(q,function(snap){setWorkers(snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}));});
-    return u;
+    var unsub=onSnapshot(collection(db,"workers"),function(snap){
+      var list=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      list.sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});
+      setWorkers(list);
+    });
+    return unsub;
   },[]);
 
-  var tlNames=workers.filter(function(w){return w.status!=="Inactive"&&(w.role==="Team Leader"||w.role==="Both");}).map(function(w){return w.name;});
-  var tcNames=workers.filter(function(w){return w.status!=="Inactive";}).map(function(w){return w.name;});
-  if(tlNames.length===0) tlNames=["Diego","Angel","Hage","Lilian","Victoria","Mick","Hamza","Hamid","Sayed","Bruna Gomes"];
-  if(tcNames.length===0) tcNames=["Diego","Ali","Hage","Angel","Victoria","Vivi","Hamid","Hamza","Lilian","Batoul","Mick","Christopher","Marcelo","Khalaf","Sayed","Alpha","Davi","Giovana","Maria Delaix","Momen","Emily","Saad","Bruna"];
+  // Always have team lists — merge Firebase workers with defaults
+  var tlFromDB=workers.filter(function(w){return w.status!=="Inactive"&&(w.role==="Team Leader"||w.role==="Both");}).map(function(w){return w.name;});
+  var tcFromDB=workers.filter(function(w){return w.status!=="Inactive";}).map(function(w){return w.name;});
+  var tlNames=tlFromDB.length>0?tlFromDB:DEFAULT_TLS;
+  var tcNames=tcFromDB.length>0?tcFromDB:DEFAULT_TCS;
 
   function saveJob(form){
-    if(form.id){var id=form.id;var data=Object.assign({},form);delete data.id;updateDoc(doc(db,"jobs",id),data).then(function(){setEditingJob(null);});}
-    else{addDoc(collection(db,"jobs"),form).then(function(){setEditingJob(null);});}
+    if(form.id){var id=form.id;var data=Object.assign({},form);delete data.id;updateDoc(doc(db,"jobs",id),data).then(function(){setEditingJob(null);}).catch(function(e){alert("Error saving: "+e.message);});}
+    else{addDoc(collection(db,"jobs"),form).then(function(){setEditingJob(null);}).catch(function(e){alert("Error saving: "+e.message);});}
   }
   function deleteJob(id){if(window.confirm("Delete this job?"))deleteDoc(doc(db,"jobs",id));}
   function toggle(id,field){var job=jobs.find(function(j){return j.id===id;});var u={};u[field]=!job[field];updateDoc(doc(db,"jobs",id),u);}
   function openNewJob(dateStr,dayName){var j=Object.assign({},emptyJob);if(dateStr)j.date=dateStr;j.day=dayName||activeDay;setEditingJob(j);}
   function prevMonth(){if(calMonth===0){setCalMonth(11);setCalYear(calYear-1);}else setCalMonth(calMonth-1);}
   function nextMonth(){if(calMonth===11){setCalMonth(0);setCalYear(calYear+1);}else setCalMonth(calMonth+1);}
-
   function saveWorker(form){
-    if(form.id){var id=form.id;var data=Object.assign({},form);delete data.id;updateDoc(doc(db,"workers",id),data).then(function(){setEditingWorker(null);});}
-    else{addDoc(collection(db,"workers"),form).then(function(){setEditingWorker(null);});}
+    if(form.id){var id=form.id;var data=Object.assign({},form);delete data.id;updateDoc(doc(db,"workers",id),data).then(function(){setEditingWorker(null);}).catch(function(e){alert("Error: "+e.message);});}
+    else{addDoc(collection(db,"workers"),form).then(function(){setEditingWorker(null);}).catch(function(e){alert("Error: "+e.message);});}
   }
-  function deleteWorker(id){if(window.confirm("Delete this worker? This cannot be undone.")){deleteDoc(doc(db,"workers",id));setEditingWorker(null);}}
+  function deleteWorker(id){if(window.confirm("Delete this worker?")){deleteDoc(doc(db,"workers",id));setEditingWorker(null);}}
 
   var dayJobs=jobs.filter(function(j){return j.day===activeDay;});
-  function countActive(day){return jobs.filter(function(j){return j.day===day&&j.status!=="Cancelled";}).length;}
+  function countActive(d){return jobs.filter(function(j){return j.day===d&&j.status!=="Cancelled";}).length;}
   var currentSection=DRIVE_SECTIONS.find(function(s){return s.id===tab;});
 
   return (
@@ -573,6 +551,7 @@ export default function App() {
 
       {/* Main */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+        {/* Topbar */}
         <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"10px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0, boxShadow:"0 1px 4px rgba(0,0,0,0.06)", zIndex:10 }}>
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
             <h1 style={{ margin:0, color:"#166534", fontSize:"16px", fontFamily:"monospace", fontWeight:"700" }}>{tab==="team"?"Team":currentSection?currentSection.title:"Bookings"}</h1>
@@ -580,7 +559,7 @@ export default function App() {
               <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
                 <button onClick={prevMonth} style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#166534", borderRadius:"6px", padding:"4px 10px", fontSize:"16px", cursor:"pointer" }}>‹</button>
                 <span style={{ color:"#374151", fontSize:"14px", fontWeight:"600", minWidth:"150px", textAlign:"center" }}>{MONTHS[calMonth]} {calYear}</span>
-                <button onClick={nextMonth} style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#166634", borderRadius:"6px", padding:"4px 10px", fontSize:"16px", cursor:"pointer" }}>›</button>
+                <button onClick={nextMonth} style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#166534", borderRadius:"6px", padding:"4px 10px", fontSize:"16px", cursor:"pointer" }}>›</button>
                 <button onClick={function(){setCalYear(now.getFullYear());setCalMonth(now.getMonth());}} style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", color:"#166534", borderRadius:"6px", padding:"4px 10px", fontSize:"12px", cursor:"pointer" }}>Today</button>
               </div>
             ):null}
@@ -596,12 +575,13 @@ export default function App() {
           </div>
         </div>
 
+        {/* Content */}
         <div style={{ flex:1, overflowY:"auto" }}>
           {currentSection?(<DriveSection section={currentSection} />)
           :tab==="team"?(<TeamPage workers={workers} onEdit={function(w){setEditingWorker(w);}} />)
-          :loading?(<div style={{ textAlign:"center", padding:"80px", color:"#94a3b8" }}>Loading...</div>)
-          :viewMode==="month"?(<MonthView jobs={jobs} year={calYear} month={calMonth} onEdit={function(job){setEditingJob(job);}} onAdd={openNewJob} />)
-          :viewMode==="week"?(<WeekView jobs={jobs} onEdit={function(job){setEditingJob(job);}} onAdd={openNewJob} />):(
+          :loading?(<div style={{ textAlign:"center", padding:"80px", color:"#94a3b8", fontSize:"14px" }}>Loading...</div>)
+          :viewMode==="month"?(<MonthView jobs={jobs} year={calYear} month={calMonth} onEdit={function(j){setEditingJob(j);}} onAdd={openNewJob} />)
+          :viewMode==="week"?(<WeekView jobs={jobs} onEdit={function(j){setEditingJob(j);}} onAdd={openNewJob} />):(
             <div>
               <div style={{ display:"flex", overflowX:"auto", background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0 8px" }}>
                 {DAYS.map(function(day){var count=countActive(day),active=day===activeDay;return <button key={day} onClick={function(){setActiveDay(day);}} style={{ background:"none", border:"none", borderBottom:active?"3px solid #166534":"3px solid transparent", color:active?"#166534":"#94a3b8", padding:"10px 14px", fontSize:"12px", fontWeight:active?"700":"500", cursor:"pointer", whiteSpace:"nowrap", fontFamily:"monospace", marginBottom:"-2px" }}>{day.slice(0,3).toUpperCase()}{count>0?<span style={{ background:active?"#166534":"#e2e8f0", color:active?"#fff":"#64748b", borderRadius:"10px", fontSize:"10px", fontWeight:"700", padding:"1px 5px", marginLeft:"5px" }}>{count}</span>:null}</button>;})}
