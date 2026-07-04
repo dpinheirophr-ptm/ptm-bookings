@@ -439,8 +439,11 @@ function JobModal(props) {
 
         {/* TCs section */}
         <div style={{ background:"#f0fdf4", borderRadius:"8px", padding:"12px", marginBottom:"12px" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"8px" }}>
-            <label style={LBL}>👷 Traffic Controllers</label>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"6px" }}>
+            <div>
+              <label style={LBL}>👷 Traffic Controllers</label>
+              <div style={{ color:"#64748b", fontSize:"10px", marginTop:"2px" }}>Team Leader is counted as 1 TC</div>
+            </div>
             <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
               <span style={{ color:"#64748b", fontSize:"12px" }}>TCs required:</span>
               <input type="number" min="1" max="20" value={form.tcRequired||1} onChange={function(e){setF("tcRequired",Number(e.target.value));}} style={{ width:"50px", background:"#fff", border:"1px solid #cbd5e1", borderRadius:"6px", color:"#166534", padding:"4px 8px", fontSize:"13px", fontWeight:"700", outline:"none", textAlign:"center" }} />
@@ -451,9 +454,14 @@ function JobModal(props) {
           </div>
           <div style={{ marginTop:"8px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <span style={{ color:"#64748b", fontSize:"11px" }}>{Object.keys(busy).length>0?"strikethrough = busy this day":""}</span>
-            <span style={{ color:workers.length>=(form.tcRequired||1)?"#166534":"#f59e0b", fontSize:"12px", fontWeight:"700" }}>
-              {workers.length} / {form.tcRequired||1} TCs assigned {workers.length>=(form.tcRequired||1)?"✓":""}
-            </span>
+            <div style={{ textAlign:"right" }}>
+              <span style={{ color:workers.length+(form.teamLeader?1:0)>=(form.tcRequired||1)?"#166534":"#f59e0b", fontSize:"12px", fontWeight:"700" }}>
+                {workers.length+(form.teamLeader?1:0)} / {form.tcRequired||1} TCs
+              </span>
+              <div style={{ color:"#94a3b8", fontSize:"10px" }}>
+                {form.teamLeader?"TL(1) + "+workers.length+" TC":"No TL selected"}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -504,6 +512,77 @@ function JobCard(props) {
   );
 }
 
+function CalendarJobChip(props) {
+  var job=props.job;
+  var sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;
+  var s1=useState(false); var hover=s1[0]; var setHover=s1[1];
+  var workers=Array.isArray(job.workers)?job.workers:[];
+  var utes=[job.teamLeader,job.ute2,job.ute3].filter(Boolean);
+  var totalTCs=workers.length+(job.teamLeader?1:0)+(job.ute2?1:0)+(job.ute3?1:0);
+  var uteCount=job.uteCount||utes.length||1;
+
+  // Format date nicely: 2026-07-06 → 06/07/2026
+  var dateFormatted="";
+  if(job.date){var p=job.date.split("-");if(p.length===3)dateFormatted=p[2]+"/"+p[1]+"/"+p[0];}
+
+  // Day of week from job.day
+  var dayLabel=job.day||"";
+
+  return (
+    <div style={{ position:"relative" }}
+      onMouseEnter={function(){setHover(true);}}
+      onMouseLeave={function(){setHover(false);}}>
+      <div onClick={function(){props.onEdit(job);}} style={{ background:sc.bg, borderLeft:"3px solid "+sc.border, borderRadius:"3px", padding:"2px 5px", marginBottom:"2px", cursor:"pointer", fontSize:"10px", color:sc.text, fontWeight:"600", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+        {job.time?" "+job.time+" ":""}{job.client}
+      </div>
+      {hover?(
+        <div style={{ position:"absolute", left:"105%", top:0, zIndex:9000, background:"#1a2e1a", color:"#e2e8f0", borderRadius:"10px", padding:"14px 16px", minWidth:"230px", maxWidth:"280px", boxShadow:"0 8px 28px rgba(0,0,0,0.4)", fontSize:"12px", lineHeight:"1.8", pointerEvents:"none", whiteSpace:"nowrap" }}>
+          {/* Arrow */}
+          <div style={{ position:"absolute", left:"-6px", top:"12px", width:0, height:0, borderTop:"6px solid transparent", borderBottom:"6px solid transparent", borderRight:"6px solid #1a2e1a" }}></div>
+
+          {/* Line 1: Day - Client */}
+          <div style={{ fontWeight:"700", fontSize:"13px", color:"#a3e635", marginBottom:"2px" }}>
+            {dayLabel} — {job.client}
+          </div>
+
+          {/* Line 2: Date - Time on site */}
+          <div style={{ color:"#94a3b8", fontSize:"11px", marginBottom:"6px" }}>
+            {dateFormatted}{dateFormatted&&job.time?" — ":""}{job.time?" "+job.time+" on site":""}
+          </div>
+
+          {/* Line 3: Address */}
+          {job.address?<div style={{ marginBottom:"4px" }}>📍 {job.address}</div>:null}
+          {job.workOrderRef?<div style={{ color:"#64748b", fontSize:"10px", marginBottom:"4px" }}>{job.workOrderRef}</div>:null}
+
+          {/* Divider */}
+          <div style={{ borderTop:"1px solid rgba(255,255,255,0.1)", margin:"6px 0" }}></div>
+
+          {/* Team */}
+          {job.teamLeader?<div>{job.teamLeader} <span style={{ color:"#a3e635", fontSize:"10px" }}>(team leader)</span></div>:null}
+          {job.ute2?<div>{job.ute2} <span style={{ color:"#38bdf8", fontSize:"10px" }}>(2nd ute)</span></div>:null}
+          {job.ute3?<div>{job.ute3} <span style={{ color:"#38bdf8", fontSize:"10px" }}>(3rd ute)</span></div>:null}
+          {workers.map(function(w){return <div key={w}>{w}</div>;})}
+
+          {/* Divider */}
+          <div style={{ borderTop:"1px solid rgba(255,255,255,0.1)", margin:"6px 0" }}></div>
+
+          {/* Summary: 3tcs 2utes */}
+          <div style={{ color:"#a3e635", fontWeight:"700", fontSize:"12px", fontFamily:"monospace" }}>
+            {totalTCs}tc{totalTCs!==1?"s":""} {uteCount}ute{uteCount!==1?"s":""}
+          </div>
+
+          {/* Status */}
+          <div style={{ marginTop:"4px" }}>
+            <span style={{ background:sc.bg, color:sc.text, borderRadius:"4px", fontSize:"9px", fontWeight:"700", padding:"2px 6px", textTransform:"uppercase" }}>{job.status}</span>
+          </div>
+
+          {job.notes?<div style={{ marginTop:"6px", color:"#64748b", fontStyle:"italic", fontSize:"10px", borderTop:"1px solid rgba(255,255,255,0.1)", paddingTop:"6px", whiteSpace:"normal" }}>{job.notes}</div>:null}
+        </div>
+      ):null}
+    </div>
+  );
+}
+
 function MonthView(props) {
   var jobs=props.jobs, year=props.year, month=props.month;
   var days=getMonthDays(year,month), todayStr=formatDate(new Date()), byDate={};
@@ -524,12 +603,7 @@ function MonthView(props) {
                 {day.current?<span onClick={function(){props.onAdd(ds,dowName);}} style={{ color:"#22c55e", fontSize:"16px", cursor:"pointer", lineHeight:1 }}>+</span>:null}
               </div>
               {dj.map(function(job){
-                var sc=STATUS_COLORS[job.status]||STATUS_COLORS.Pending;
-                return (
-                  <div key={job.id} onClick={function(){props.onEdit(job);}} style={{ background:sc.bg, borderLeft:"3px solid "+sc.border, borderRadius:"3px", padding:"2px 5px", marginBottom:"2px", cursor:"pointer", fontSize:"10px", color:sc.text, fontWeight:"600", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                    {job.time?" "+job.time+" ":""}{job.client}
-                  </div>
-                );
+                return <CalendarJobChip key={job.id} job={job} onEdit={props.onEdit} />;
               })}
             </div>
           );
